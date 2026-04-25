@@ -6,6 +6,7 @@ import type {
   EnemyStatBlock,
   EnemyTemplate,
   Session,
+  WeaponTemplate,
 } from "./types";
 import { emptyStats, maxHpFromStats } from "./types";
 
@@ -14,19 +15,23 @@ const STORAGE_KEY = "cpr-initiative-tracker/v1";
 type StoreData = {
   sessions: Session[];
   templates: EnemyTemplate[];
+  weaponTemplates: WeaponTemplate[];
 };
 
 function load(): StoreData {
-  const empty: StoreData = { sessions: [], templates: [] };
+  const empty: StoreData = { sessions: [], templates: [], weaponTemplates: [] };
   if (typeof localStorage === "undefined") return empty;
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return empty;
   try {
     const parsed = JSON.parse(raw);
-    // v1 stored just an array of sessions; v2 stores { sessions, templates }.
     const data: StoreData = Array.isArray(parsed)
-      ? { sessions: parsed, templates: [] }
-      : { sessions: parsed.sessions ?? [], templates: parsed.templates ?? [] };
+      ? { sessions: parsed, templates: [], weaponTemplates: [] }
+      : {
+          sessions: parsed.sessions ?? [],
+          templates: parsed.templates ?? [],
+          weaponTemplates: parsed.weaponTemplates ?? [],
+        };
     migrate(data);
     return data;
   } catch {
@@ -68,6 +73,19 @@ function migrateStatBlock(c: Record<string, unknown>) {
   c.cyberware ??= [];
   // maxHp is now derived from BODY+WILL; drop any stored value.
   delete c.maxHp;
+  if (Array.isArray(c.weapons)) {
+    for (const w of c.weapons as Record<string, unknown>[]) {
+      // damage was a string like "4d6"; now a d6 dice count number.
+      if (typeof w.damage === "string") {
+        const m = (w.damage as string).match(/(\d+)/);
+        w.damage = m ? Number(m[1]) : 0;
+      } else if (typeof w.damage !== "number") {
+        w.damage = 0;
+      }
+      w.ammo ??= 0;
+      w.description ??= "";
+    }
+  }
   if (Array.isArray(c.skills)) {
     for (const skill of c.skills as Record<string, unknown>[]) {
       skill.mod ??= 0;
@@ -82,6 +100,7 @@ function save() {
   const data: StoreData = {
     sessions: store.sessions,
     templates: store.templates,
+    weaponTemplates: store.weaponTemplates,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -145,6 +164,35 @@ export function deleteTemplate(id: string) {
 
 function cloneStatBlock(data: EnemyStatBlock): EnemyStatBlock {
   return JSON.parse(JSON.stringify(data)) as EnemyStatBlock;
+}
+
+// ---- Weapon templates ----
+
+export type WeaponTemplateInput = Omit<WeaponTemplate, "id">;
+
+export function createWeaponTemplate(data: WeaponTemplateInput): WeaponTemplate {
+  const template: WeaponTemplate = { id: crypto.randomUUID(), ...data };
+  store.weaponTemplates.push(template);
+  save();
+  return template;
+}
+
+export function getWeaponTemplate(id: string): WeaponTemplate | undefined {
+  return store.weaponTemplates.find((t) => t.id === id);
+}
+
+export function updateWeaponTemplate(id: string, data: WeaponTemplateInput) {
+  const template = getWeaponTemplate(id);
+  if (!template) return;
+  Object.assign(template, data);
+  save();
+}
+
+export function deleteWeaponTemplate(id: string) {
+  const idx = store.weaponTemplates.findIndex((t) => t.id === id);
+  if (idx === -1) return;
+  store.weaponTemplates.splice(idx, 1);
+  save();
 }
 
 // ---- Combatants ----

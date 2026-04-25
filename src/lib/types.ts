@@ -142,8 +142,31 @@ export type Weapon = {
   id: string;
   name: string;
   rof: number;
-  damage: string;
+  ammo: number;
+  damage: number;
+  description: string;
+  templateId?: string;
 };
+
+export type WeaponTemplate = {
+  id: string;
+  name: string;
+  rof: number;
+  ammo: number;
+  damage: number;
+  description: string;
+};
+
+export function emptyWeapon(): Weapon {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    rof: 1,
+    ammo: 0,
+    damage: 0,
+    description: "",
+  };
+}
 
 export type Skill = {
   id: string;
