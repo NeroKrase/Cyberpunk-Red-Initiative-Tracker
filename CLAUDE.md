@@ -4,6 +4,11 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
+## Project pointers
+
+- **Any UI / styling work**: read `STYLE.md` first. It defines the design tokens, faction theming pattern, component conventions, and explicit don'ts. Pull from CSS custom props — never hardcode hex.
+- **Build / install / run**: `README.md` covers prerequisites and commands.
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
