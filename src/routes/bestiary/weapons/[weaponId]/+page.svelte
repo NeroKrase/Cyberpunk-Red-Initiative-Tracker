@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import PageChrome from "$lib/PageChrome.svelte";
   import WeaponTemplateForm from "$lib/WeaponTemplateForm.svelte";
   import {
     getWeaponTemplate,
@@ -21,16 +22,18 @@
   }
 </script>
 
-<p><a href="/bestiary">&larr; Database</a></p>
-
-{#if !template}
-  <h1>Weapon not found</h1>
-{:else}
-  <h1>Edit {template.name || "weapon"}</h1>
-  <WeaponTemplateForm
-    initial={template}
-    submitLabel="Save changes"
-    {onSave}
-    {onCancel}
-  />
-{/if}
+<PageChrome
+  backHref="/bestiary"
+  backLabel="Database"
+  title={template ? `Edit ${template.name || "weapon"}` : "Weapon not found"}
+  faction="blue"
+>
+  {#if template}
+    <WeaponTemplateForm
+      initial={template}
+      submitLabel="Save changes"
+      {onSave}
+      {onCancel}
+    />
+  {/if}
+</PageChrome>

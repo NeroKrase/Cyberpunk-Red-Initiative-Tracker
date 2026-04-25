@@ -302,6 +302,12 @@
     margin: 0;
   }
 
+  .stat-form input:focus,
+  .stat-form select:focus,
+  .stat-form textarea:focus {
+    border-color: var(--faction, var(--ncpd));
+  }
+
   section {
     display: flex;
     flex-direction: column;
@@ -313,6 +319,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .section-head h3 {
@@ -336,7 +343,7 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.85em;
-    color: #bbb;
+    color: var(--text-muted);
   }
 
   label input {
@@ -346,7 +353,9 @@
   .stat-name {
     text-align: center;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faction, var(--text-muted));
   }
 
   .row {
@@ -374,30 +383,35 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.85em;
-    color: #bbb;
+    color: var(--text-muted);
   }
 
   .readonly-value {
-    padding: 0.4rem 0.6rem;
-    background: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #ddd;
-    font-size: 1em;
+    padding: 0.45rem 0.7rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   .label-text {
     font-size: 0.85em;
-    color: #bbb;
+    color: var(--text-muted);
   }
 
-  .add-skill {
-    font: inherit;
-    padding: 0.3rem 0.5rem;
-    background: #2a2a2a;
-    color: inherit;
-    border: 1px solid #444;
-    border-radius: 4px;
+  .add-skill,
+  .add-from-template {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .add-skill:hover,
+  .add-from-template:hover {
+    border-color: var(--faction, var(--ncpd));
+    color: var(--text);
   }
 
   .skill-grid {
@@ -407,11 +421,13 @@
     align-items: center;
   }
 
-  .skill-head {
-    font-size: 0.75em;
+  .skill-head,
+  .weapon-head {
+    font-size: 0.72em;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #888;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
   }
 
   .skill-name {
@@ -419,31 +435,26 @@
   }
 
   .skill-stat {
+    font-family: var(--font-mono);
     font-size: 0.85em;
-    color: #bbb;
+    color: var(--text-muted);
     white-space: nowrap;
   }
 
   .skill-total {
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-weight: 600;
+    font-weight: 700;
     text-align: right;
     min-width: 1.5rem;
+    color: var(--faction, var(--ncpd));
   }
 
   .weapon-add {
     display: inline-flex;
     gap: 0.5rem;
     align-items: center;
-  }
-
-  .add-from-template {
-    font: inherit;
-    padding: 0.3rem 0.5rem;
-    background: #2a2a2a;
-    color: inherit;
-    border: 1px solid #444;
-    border-radius: 4px;
+    flex-wrap: wrap;
   }
 
   .weapon-grid {
@@ -453,26 +464,19 @@
     align-items: center;
   }
 
-  .weapon-head {
-    font-size: 0.75em;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #888;
-  }
-
   .weapon-desc {
     grid-column: 1 / -1;
-    margin-top: -0.1rem;
-    margin-bottom: 0.4rem;
+    margin: -0.1rem 0 0.5rem;
   }
   .weapon-desc summary {
     cursor: pointer;
     font-size: 0.78em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #888;
-    padding: 0.15rem 0;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 0.2rem 0;
     list-style: none;
+    user-select: none;
   }
   .weapon-desc summary::-webkit-details-marker {
     display: none;
@@ -481,7 +485,8 @@
     content: "▸";
     display: inline-block;
     width: 1em;
-    color: #666;
+    color: var(--faction, var(--ncpd));
+    margin-right: 0.15rem;
   }
   .weapon-desc[open] summary::before {
     content: "▾";
@@ -489,12 +494,19 @@
   .weapon-desc textarea {
     width: 100%;
     box-sizing: border-box;
-    font: inherit;
-    padding: 0.45rem 0.6rem;
-    background: #2a2a2a;
-    color: inherit;
-    border: 1px solid #444;
     resize: vertical;
-    margin-top: 0.25rem;
+    margin-top: 0.3rem;
+  }
+
+  .del {
+    border: 1px solid transparent;
+    color: var(--text-faint);
+    padding: 0.05rem 0.45rem;
+    font-size: 1em;
+    line-height: 1;
+  }
+  .del:hover {
+    color: var(--accent-bright);
+    border-color: var(--accent);
   }
 </style>

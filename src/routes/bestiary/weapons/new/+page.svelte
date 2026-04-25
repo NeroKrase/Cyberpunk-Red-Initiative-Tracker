@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import PageChrome from "$lib/PageChrome.svelte";
   import WeaponTemplateForm from "$lib/WeaponTemplateForm.svelte";
   import { createWeaponTemplate, type WeaponTemplateInput } from "$lib/store.svelte";
 
@@ -13,7 +14,6 @@
   }
 </script>
 
-<p><a href="/bestiary">&larr; Database</a></p>
-<h1>New weapon template</h1>
-
-<WeaponTemplateForm submitLabel="Create template" {onSave} {onCancel} />
+<PageChrome backHref="/bestiary" backLabel="Database" title="Register new weapon" faction="blue">
+  <WeaponTemplateForm submitLabel="Register weapon" {onSave} {onCancel} />
+</PageChrome>

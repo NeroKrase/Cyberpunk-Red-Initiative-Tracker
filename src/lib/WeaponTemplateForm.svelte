@@ -105,17 +105,12 @@
   }
 
   textarea {
-    font: inherit;
-    padding: 0.5rem 0.6rem;
-    background: var(--surface-2);
-    color: var(--text);
-    border: 1px solid var(--border-strong);
     resize: vertical;
   }
 
-  textarea:focus {
-    border-color: var(--ncpd);
-    outline: none;
+  .weapon-form input:focus,
+  .weapon-form textarea:focus {
+    border-color: var(--faction, var(--ncpd));
   }
 
   .actions {
