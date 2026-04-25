@@ -1,9 +1,19 @@
 <script lang="ts">
-  import { store, deleteTemplate } from "$lib/store.svelte";
+  import {
+    store,
+    deleteTemplate,
+    deleteWeaponTemplate,
+  } from "$lib/store.svelte";
   import { maxHpFromStats } from "$lib/types";
+
+  let tab = $state<"npcs" | "weapons">("npcs");
 
   function removeTemplate(id: string, name: string) {
     if (confirm(`Delete record "${name}"?`)) deleteTemplate(id);
+  }
+
+  function removeWeapon(id: string, name: string) {
+    if (confirm(`Delete weapon "${name}"?`)) deleteWeaponTemplate(id);
   }
 </script>
 
@@ -15,29 +25,79 @@
     <h1>NCPD Crime Database</h1>
   </header>
 
-  <a href="/bestiary/new" class="action">+ File new perp</a>
+  <div class="tabs" role="tablist">
+    <button
+      role="tab"
+      type="button"
+      class="tab"
+      class:active={tab === "npcs"}
+      aria-selected={tab === "npcs"}
+      onclick={() => (tab = "npcs")}>NPCs</button
+    >
+    <button
+      role="tab"
+      type="button"
+      class="tab"
+      class:active={tab === "weapons"}
+      aria-selected={tab === "weapons"}
+      onclick={() => (tab = "weapons")}>Weapons</button
+    >
+  </div>
 
-  {#if store.templates.length === 0}
-    <p class="empty">// records database empty</p>
+  {#if tab === "npcs"}
+    <a href="/bestiary/new" class="action">+ File new perp</a>
+
+    {#if store.templates.length === 0}
+      <p class="empty">// records database empty</p>
+    {:else}
+      <ul class="list">
+        {#each store.templates as template (template.id)}
+          <li>
+            <a href="/bestiary/{template.id}" class="entry">
+              <span class="prefix">›</span>
+              <span class="name">{template.name || "(unnamed)"}</span>
+              {#if template.role}<span class="role">{template.role}</span>{/if}
+            </a>
+            <span class="meta"
+              >HP {maxHpFromStats(template.stats)} · SP {template.armor.head
+                .sp}/{template.armor.body.sp}</span
+            >
+            <button
+              type="button"
+              class="del"
+              onclick={() => removeTemplate(template.id, template.name)}
+              aria-label="Delete {template.name}">×</button
+            >
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {:else}
-    <ul class="list">
-      {#each store.templates as template (template.id)}
-        <li>
-          <a href="/bestiary/{template.id}" class="entry">
-            <span class="prefix">›</span>
-            <span class="name">{template.name || "(unnamed)"}</span>
-            {#if template.role}<span class="role">{template.role}</span>{/if}
-          </a>
-          <span class="meta">HP {maxHpFromStats(template.stats)} · SP {template.armor.head.sp}/{template.armor.body.sp}</span>
-          <button
-            type="button"
-            class="del"
-            onclick={() => removeTemplate(template.id, template.name)}
-            aria-label="Delete {template.name}"
-          >×</button>
-        </li>
-      {/each}
-    </ul>
+    <a href="/bestiary/weapons/new" class="action">+ Register new weapon</a>
+
+    {#if store.weaponTemplates.length === 0}
+      <p class="empty">// no weapons in registry</p>
+    {:else}
+      <ul class="list">
+        {#each store.weaponTemplates as weapon (weapon.id)}
+          <li>
+            <a href="/bestiary/weapons/{weapon.id}" class="entry">
+              <span class="prefix">›</span>
+              <span class="name">{weapon.name || "(unnamed)"}</span>
+            </a>
+            <span class="meta"
+              >ROF {weapon.rof} · {weapon.damage}D6 · AMMO {weapon.ammo}</span
+            >
+            <button
+              type="button"
+              class="del"
+              onclick={() => removeWeapon(weapon.id, weapon.name)}
+              aria-label="Delete {weapon.name}">×</button
+            >
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 </div>
 
@@ -78,6 +138,34 @@
     font-weight: 700;
   }
 
+  .tabs {
+    display: flex;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .tab {
+    padding: 0.45rem 1.1rem;
+    margin-bottom: -1px;
+    background: transparent;
+    color: var(--text-faint);
+    border: 1px solid transparent;
+    border-bottom: 1px solid var(--border-strong);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.85em;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .tab:hover:not(.active) {
+    color: var(--faction);
+  }
+  .tab.active {
+    color: var(--faction);
+    border-color: var(--border-strong) var(--border-strong) var(--bg)
+      var(--border-strong);
+    border-top-color: var(--faction);
+  }
+
   .action {
     display: inline-block;
     margin-bottom: 1.5rem;
@@ -109,7 +197,11 @@
     border-bottom: none;
   }
   .list :global(li:hover) {
-    background: linear-gradient(90deg, color-mix(in srgb, var(--faction) 8%, transparent), transparent);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--faction) 8%, transparent),
+      transparent
+    );
   }
 
   .entry {

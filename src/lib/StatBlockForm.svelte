@@ -6,9 +6,11 @@
     SKILL_CATALOG,
     SKILL_CATEGORIES,
     emptyStatBlock,
+    emptyWeapon,
     getSkillStat,
     maxHpFromStats,
   } from "./types";
+  import { store } from "./store.svelte";
 
   type Props = {
     initial?: EnemyStatBlock;
@@ -57,7 +59,25 @@
   }
 
   function addWeapon() {
-    weapons.push({ id: crypto.randomUUID(), name: "", rof: 1, damage: "" });
+    weapons.push(emptyWeapon());
+  }
+
+  function addWeaponFromTemplate(event: Event) {
+    const select = event.currentTarget as HTMLSelectElement;
+    const id = select.value;
+    select.value = "";
+    if (!id) return;
+    const template = store.weaponTemplates.find((t) => t.id === id);
+    if (!template) return;
+    weapons.push({
+      id: crypto.randomUUID(),
+      name: template.name,
+      rof: template.rof,
+      ammo: template.ammo,
+      damage: template.damage,
+      description: template.description,
+      templateId: template.id,
+    });
   }
 
   function submit(event: Event) {
@@ -132,21 +152,72 @@
   <section>
     <div class="section-head">
       <h3>Weapons</h3>
-      <button type="button" onclick={addWeapon}>+ Weapon</button>
-    </div>
-    {#each weapons as weapon, i (weapon.id)}
-      <div class="row">
-        <input bind:value={weapon.name} placeholder="Name" class="grow" />
-        <input
-          type="number"
-          bind:value={weapon.rof}
-          placeholder="ROF"
-          class="num"
-        />
-        <input bind:value={weapon.damage} placeholder="Dmg (e.g. 4d6)" />
-        <button type="button" onclick={() => weapons.splice(i, 1)}>×</button>
+      <div class="weapon-add">
+        <button type="button" onclick={addWeapon}>+ Weapon</button>
+        {#if store.weaponTemplates.length}
+          <select
+            class="add-from-template"
+            onchange={addWeaponFromTemplate}
+            aria-label="Add weapon from template"
+          >
+            <option value="" selected>+ From template…</option>
+            {#each store.weaponTemplates as wt (wt.id)}
+              <option value={wt.id}>{wt.name || "(unnamed)"}</option>
+            {/each}
+          </select>
+        {/if}
       </div>
-    {/each}
+    </div>
+    {#if weapons.length}
+      <div class="weapon-grid">
+        <span class="weapon-head">Name</span>
+        <span class="weapon-head">ROF</span>
+        <span class="weapon-head">Ammo</span>
+        <span class="weapon-head">Dmg (d6)</span>
+        <span></span>
+        {#each weapons as weapon, i (weapon.id)}
+          <input bind:value={weapon.name} placeholder="Name" />
+          <input
+            type="number"
+            min="1"
+            step="1"
+            bind:value={weapon.rof}
+            class="num"
+            aria-label="ROF for {weapon.name || 'weapon'}"
+          />
+          <input
+            type="number"
+            min="0"
+            step="1"
+            bind:value={weapon.ammo}
+            class="num"
+            aria-label="Ammo for {weapon.name || 'weapon'}"
+          />
+          <input
+            type="number"
+            min="0"
+            step="1"
+            bind:value={weapon.damage}
+            class="num"
+            aria-label="Damage d6 for {weapon.name || 'weapon'}"
+          />
+          <button
+            type="button"
+            class="del"
+            onclick={() => weapons.splice(i, 1)}
+            aria-label="Remove {weapon.name || 'weapon'}">×</button
+          >
+          <details class="weapon-desc">
+            <summary>Description</summary>
+            <textarea
+              bind:value={weapon.description}
+              rows="3"
+              placeholder="Notes, ammo type, mods…"
+            ></textarea>
+          </details>
+        {/each}
+      </div>
+    {/if}
   </section>
 
   <section>
@@ -358,5 +429,72 @@
     font-weight: 600;
     text-align: right;
     min-width: 1.5rem;
+  }
+
+  .weapon-add {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .add-from-template {
+    font: inherit;
+    padding: 0.3rem 0.5rem;
+    background: #2a2a2a;
+    color: inherit;
+    border: 1px solid #444;
+    border-radius: 4px;
+  }
+
+  .weapon-grid {
+    display: grid;
+    grid-template-columns: 1fr 4.5rem 4.5rem 4.5rem auto;
+    gap: 0.4rem 0.6rem;
+    align-items: center;
+  }
+
+  .weapon-head {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+  }
+
+  .weapon-desc {
+    grid-column: 1 / -1;
+    margin-top: -0.1rem;
+    margin-bottom: 0.4rem;
+  }
+  .weapon-desc summary {
+    cursor: pointer;
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #888;
+    padding: 0.15rem 0;
+    list-style: none;
+  }
+  .weapon-desc summary::-webkit-details-marker {
+    display: none;
+  }
+  .weapon-desc summary::before {
+    content: "▸";
+    display: inline-block;
+    width: 1em;
+    color: #666;
+  }
+  .weapon-desc[open] summary::before {
+    content: "▾";
+  }
+  .weapon-desc textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 0.45rem 0.6rem;
+    background: #2a2a2a;
+    color: inherit;
+    border: 1px solid #444;
+    resize: vertical;
+    margin-top: 0.25rem;
   }
 </style>
