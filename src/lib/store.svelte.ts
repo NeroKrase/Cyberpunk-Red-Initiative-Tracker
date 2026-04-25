@@ -1,0 +1,251 @@
+import type {
+  ArmorLocation,
+  Combatant,
+  Encounter,
+  Enemy,
+  EnemyStatBlock,
+  EnemyTemplate,
+  Session,
+} from "./types";
+import { emptyStats, maxHpFromStats } from "./types";
+
+const STORAGE_KEY = "cpr-initiative-tracker/v1";
+
+type StoreData = {
+  sessions: Session[];
+  templates: EnemyTemplate[];
+};
+
+function load(): StoreData {
+  const empty: StoreData = { sessions: [], templates: [] };
+  if (typeof localStorage === "undefined") return empty;
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return empty;
+  try {
+    const parsed = JSON.parse(raw);
+    // v1 stored just an array of sessions; v2 stores { sessions, templates }.
+    const data: StoreData = Array.isArray(parsed)
+      ? { sessions: parsed, templates: [] }
+      : { sessions: parsed.sessions ?? [], templates: parsed.templates ?? [] };
+    migrate(data);
+    return data;
+  } catch {
+    return empty;
+  }
+}
+
+function migrate(data: StoreData) {
+  for (const session of data.sessions) {
+    for (const encounter of session.encounters) {
+      for (const raw of encounter.combatants as unknown[]) {
+        migrateCombatant(raw as Record<string, unknown>);
+      }
+    }
+  }
+  for (const raw of data.templates as unknown[]) {
+    migrateStatBlock(raw as Record<string, unknown>);
+  }
+}
+
+function migrateCombatant(c: Record<string, unknown>) {
+  c.kind ??= "enemy";
+  if (c.kind !== "enemy") return;
+  // Old single `sp` becomes armor.body.sp.
+  if (typeof c.sp === "number" && !c.armor) {
+    c.armor = { head: { name: "", sp: 0 }, body: { name: "", sp: c.sp } };
+    delete c.sp;
+  }
+  migrateStatBlock(c);
+  c.hp ??= 0;
+}
+
+function migrateStatBlock(c: Record<string, unknown>) {
+  c.armor ??= { head: { name: "", sp: 0 }, body: { name: "", sp: 0 } };
+  c.role ??= "";
+  c.stats ??= emptyStats();
+  c.weapons ??= [];
+  c.gear ??= [];
+  c.cyberware ??= [];
+  // maxHp is now derived from BODY+WILL; drop any stored value.
+  delete c.maxHp;
+  if (Array.isArray(c.skills)) {
+    for (const skill of c.skills as Record<string, unknown>[]) {
+      skill.mod ??= 0;
+    }
+  } else {
+    c.skills = [];
+  }
+}
+
+function save() {
+  if (typeof localStorage === "undefined") return;
+  const data: StoreData = {
+    sessions: store.sessions,
+    templates: store.templates,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+export const store = $state<StoreData>(load());
+
+// ---- Sessions ----
+
+export function createSession(name: string): Session {
+  const session: Session = { id: crypto.randomUUID(), name, encounters: [] };
+  store.sessions.push(session);
+  save();
+  return session;
+}
+
+export function getSession(id: string): Session | undefined {
+  return store.sessions.find((s) => s.id === id);
+}
+
+// ---- Encounters ----
+
+export function createEncounter(sessionId: string, name: string): Encounter | undefined {
+  const session = getSession(sessionId);
+  if (!session) return;
+  const encounter: Encounter = { id: crypto.randomUUID(), name, combatants: [] };
+  session.encounters.push(encounter);
+  save();
+  return encounter;
+}
+
+export function getEncounter(sessionId: string, encounterId: string): Encounter | undefined {
+  return getSession(sessionId)?.encounters.find((e) => e.id === encounterId);
+}
+
+// ---- Templates ----
+
+export function createTemplate(data: EnemyStatBlock): EnemyTemplate {
+  const template: EnemyTemplate = { id: crypto.randomUUID(), ...cloneStatBlock(data) };
+  store.templates.push(template);
+  save();
+  return template;
+}
+
+export function getTemplate(id: string): EnemyTemplate | undefined {
+  return store.templates.find((t) => t.id === id);
+}
+
+export function updateTemplate(id: string, data: EnemyStatBlock) {
+  const template = getTemplate(id);
+  if (!template) return;
+  Object.assign(template, cloneStatBlock(data));
+  save();
+}
+
+export function deleteTemplate(id: string) {
+  const idx = store.templates.findIndex((t) => t.id === id);
+  if (idx === -1) return;
+  store.templates.splice(idx, 1);
+  save();
+}
+
+function cloneStatBlock(data: EnemyStatBlock): EnemyStatBlock {
+  return JSON.parse(JSON.stringify(data)) as EnemyStatBlock;
+}
+
+// ---- Combatants ----
+
+function getCombatant(
+  sessionId: string,
+  encounterId: string,
+  combatantId: string,
+): Combatant | undefined {
+  return getEncounter(sessionId, encounterId)?.combatants.find(
+    (c) => c.id === combatantId,
+  );
+}
+
+export type NewCombatantInput =
+  | { kind: "pc"; name: string; initiative: number }
+  | { kind: "enemy"; templateId: string; initiative: number; nameOverride?: string };
+
+export function addCombatant(
+  sessionId: string,
+  encounterId: string,
+  input: NewCombatantInput,
+): Combatant | undefined {
+  const encounter = getEncounter(sessionId, encounterId);
+  if (!encounter) return;
+
+  let combatant: Combatant;
+  if (input.kind === "pc") {
+    combatant = {
+      id: crypto.randomUUID(),
+      kind: "pc",
+      name: input.name,
+      initiative: input.initiative,
+    };
+  } else {
+    const template = getTemplate(input.templateId);
+    if (!template) return;
+    const { id: _templateId, ...statBlock } = template;
+    const snapshot = cloneStatBlock(statBlock);
+    const override = input.nameOverride?.trim();
+    if (override) snapshot.name = override;
+    combatant = {
+      id: crypto.randomUUID(),
+      kind: "enemy",
+      initiative: input.initiative,
+      hp: maxHpFromStats(snapshot.stats),
+      templateId: template.id,
+      ...snapshot,
+    };
+  }
+  encounter.combatants.push(combatant);
+  save();
+  return combatant;
+}
+
+export type CombatantPatch = Partial<{
+  name: string;
+  initiative: number;
+  hp: number;
+}>;
+
+export function updateCombatant(
+  sessionId: string,
+  encounterId: string,
+  combatantId: string,
+  patch: CombatantPatch,
+) {
+  const combatant = getCombatant(sessionId, encounterId, combatantId);
+  if (!combatant) return;
+  Object.assign(combatant, patch);
+  save();
+}
+
+export function updateArmorSp(
+  sessionId: string,
+  encounterId: string,
+  combatantId: string,
+  location: ArmorLocation,
+  sp: number,
+) {
+  const combatant = getCombatant(sessionId, encounterId, combatantId);
+  if (!combatant || combatant.kind !== "enemy") return;
+  combatant.armor[location].sp = sp;
+  save();
+}
+
+export function applyDamage(
+  sessionId: string,
+  encounterId: string,
+  combatantId: string,
+  damage: number,
+  location: ArmorLocation,
+) {
+  const combatant = getCombatant(sessionId, encounterId, combatantId);
+  if (!combatant || combatant.kind !== "enemy" || damage <= 0) return;
+  const enemy = combatant as Enemy;
+  const sp = enemy.armor[location].sp;
+  if (damage > sp) {
+    enemy.hp -= damage - sp;
+    if (sp > 0) enemy.armor[location].sp = sp - 1;
+  }
+  save();
+}
+
