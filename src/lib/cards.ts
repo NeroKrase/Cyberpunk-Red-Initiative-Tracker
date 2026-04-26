@@ -1,4 +1,4 @@
-import type { EnemyStatBlock, EnemyTemplate } from "./types";
+import type { EnemyTemplate } from "./types";
 import {
   STAT_KEYS,
   maxHpFromStats,
@@ -7,12 +7,26 @@ import {
 } from "./types";
 
 const RED = "#c8102e";
-const BLACK = "#000";
+const BLACK = "#111";
 const WHITE = "#fff";
-const FAINT = "#888";
+const FAINT = "#7a7a7a";
 const FONT = '"Rajdhani", system-ui, sans-serif';
 
+const NOTCH = 6;
+const STROKE = 2;
+
 export type CardSize = "small" | "big";
+
+type Sides = {
+  tl?: boolean;
+  tr?: boolean;
+  br?: boolean;
+  bl?: boolean;
+};
+
+const NOTCH_TR_BL: Sides = { tr: true, bl: true };
+const NOTCH_TR: Sides = { tr: true };
+const NOTCH_ALL: Sides = { tl: true, tr: true, br: true, bl: true };
 
 export async function downloadNpcCard(
   template: EnemyTemplate,
@@ -57,19 +71,65 @@ function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
 
 // ---------- Drawing primitives ----------
 
-function box(
+function notchPath(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
   h: number,
+  sides: Sides,
+  notch = NOTCH,
 ) {
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = RED;
-  ctx.strokeRect(x, y, w, h);
+  const n = Math.min(notch, w / 3, h / 3);
+  ctx.beginPath();
+  if (sides.tl) {
+    ctx.moveTo(x, y + n);
+    ctx.lineTo(x + n, y);
+  } else {
+    ctx.moveTo(x, y);
+  }
+  if (sides.tr) {
+    ctx.lineTo(x + w - n, y);
+    ctx.lineTo(x + w, y + n);
+  } else {
+    ctx.lineTo(x + w, y);
+  }
+  if (sides.br) {
+    ctx.lineTo(x + w, y + h - n);
+    ctx.lineTo(x + w - n, y + h);
+  } else {
+    ctx.lineTo(x + w, y + h);
+  }
+  if (sides.bl) {
+    ctx.lineTo(x + n, y + h);
+    ctx.lineTo(x, y + h - n);
+  } else {
+    ctx.lineTo(x, y + h);
+  }
+  ctx.closePath();
 }
 
-function banner(
+function notchedBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  sides: Sides = NOTCH_TR_BL,
+  fill?: string,
+) {
+  notchPath(ctx, x, y, w, h, sides);
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  ctx.lineWidth = STROKE;
+  ctx.strokeStyle = RED;
+  ctx.stroke();
+}
+
+// Red banner with a stepped/notched right tail.
+function flagBanner(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -77,52 +137,60 @@ function banner(
   h: number,
   label: string,
 ) {
+  const tail = h * 0.55;
   ctx.fillStyle = RED;
-  ctx.fillRect(x, y, w, h);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w + tail, y + h / 2);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.fill();
   ctx.fillStyle = WHITE;
-  ctx.font = `700 11px ${FONT}`;
+  ctx.font = `800 13px ${FONT}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, x + 8, y + h / 2 + 1);
+  ctx.fillText(label.toUpperCase(), x + 10, y + h / 2 + 1);
 }
 
-function labelBox(
+// Small label tag (white-filled, red bordered, red text). Used for COM#, INIT, etc.
+function labelTag(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
   h: number,
+  label: string,
+  fontSize = 11,
+) {
+  notchedBox(ctx, x, y, w, h, NOTCH_TR_BL, WHITE);
+  ctx.fillStyle = RED;
+  ctx.font = `800 ${fontSize}px ${FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label.toUpperCase(), x + w / 2, y + h / 2 + 1);
+}
+
+// Returns next x after drawing label-tag + value.
+function tagAndValue(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tagW: number,
+  tagH: number,
   label: string,
   value: string,
-  opts: { valueAlign?: CanvasTextAlign; valueFont?: string } = {},
-) {
-  box(ctx, x, y, w, h);
-  ctx.fillStyle = RED;
-  ctx.fillRect(x + 1, y + 1, w - 2, 16);
-  ctx.fillStyle = WHITE;
-  ctx.font = `700 9px ${FONT}`;
+  valueGap = 6,
+  valueFontSize = 26,
+): number {
+  labelTag(ctx, x, y, tagW, tagH, label);
+  ctx.fillStyle = BLACK;
+  ctx.font = `800 ${valueFontSize}px ${FONT}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, x + 6, y + 9);
-  ctx.fillStyle = BLACK;
-  ctx.font = opts.valueFont ?? `700 16px ${FONT}`;
-  ctx.textAlign = opts.valueAlign ?? "right";
-  ctx.textBaseline = "middle";
-  const valueX =
-    (opts.valueAlign ?? "right") === "right" ? x + w - 8 : x + 8;
-  ctx.fillText(value, valueX, y + 17 + (h - 17) / 2 + 1);
-}
-
-function statBox(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  label: string,
-  value: number,
-) {
-  labelBox(ctx, x, y, w, h, label, String(value));
+  ctx.fillText(value, x + tagW + valueGap, y + tagH / 2 + 1);
+  return x + tagW + valueGap + ctx.measureText(value).width;
 }
 
 function wrap(
@@ -194,93 +262,115 @@ function crop(
 
 export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
   const W = 480;
-  const PAD = 12;
+  const PAD = 10;
   const dpr = 2;
   const stage = makeStage(W, dpr);
   const ctx = stage.ctx;
+  const innerW = W - 2 * PAD;
   let y = PAD;
 
-  // --- Header: NAME | HP(DS) ---
-  const headerH = 56;
-  const hpW = 110;
-  const nameW = W - 2 * PAD - hpW - 6;
-  box(ctx, PAD, y, nameW, headerH);
+  // --- Header row: name + HP(DS) ---
+  const headerH = 54;
+  const hpW = 96;
+  const nameW = innerW - hpW - 6;
+  notchedBox(ctx, PAD, y, nameW, headerH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  ctx.font = `700 18px ${FONT}`;
+  ctx.font = `800 22px ${FONT}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const nameText = (template.name || "(unnamed)").toUpperCase();
-  ctx.fillText(nameText, PAD + 12, y + headerH / 2);
+  ctx.fillText(
+    (template.name || "(unnamed)").toUpperCase(),
+    PAD + 14,
+    y + headerH / 2 + 1,
+  );
 
+  // HP(DS) box: small red-filled "HP(DS)" tag + big black number below
   const hpX = PAD + nameW + 6;
-  box(ctx, hpX, y, hpW, headerH);
+  const hpTagH = 18;
+  notchedBox(ctx, hpX, y, hpW, headerH, NOTCH_TR_BL);
+  // red-filled HP(DS) label
+  ctx.save();
+  notchPath(ctx, hpX + 4, y + 4, 38, hpTagH, NOTCH_TR);
+  ctx.clip();
   ctx.fillStyle = RED;
-  ctx.fillRect(hpX + 1, y + 1, hpW - 2, 16);
+  ctx.fillRect(hpX, y, 50, hpTagH + 6);
+  ctx.restore();
   ctx.fillStyle = WHITE;
-  ctx.font = `700 10px ${FONT}`;
-  ctx.textAlign = "center";
+  ctx.font = `800 9px ${FONT}`;
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("HP (DS)", hpX + hpW / 2, y + 9);
+  ctx.fillText("HP", hpX + 8, y + 8);
+  ctx.fillText("(DS)", hpX + 8, y + 18);
   ctx.fillStyle = BLACK;
-  ctx.font = `700 22px ${FONT}`;
+  ctx.font = `800 22px ${FONT}`;
+  ctx.textAlign = "right";
   ctx.fillText(
     `${maxHpFromStats(template.stats)}(${template.stats.body})`,
-    hpX + hpW / 2,
-    y + 38,
+    hpX + hpW - 8,
+    y + headerH / 2 + 4,
   );
-  y += headerH + 6;
+  y += headerH + 4;
 
   // --- Role row ---
-  if (template.role) {
-    const roleH = 30;
-    box(ctx, PAD, y, W - 2 * PAD, roleH);
-    ctx.fillStyle = BLACK;
-    ctx.font = `700 14px ${FONT}`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(template.role.toUpperCase(), PAD + 12, y + roleH / 2);
-    y += roleH + 6;
-  }
+  const roleH = 30;
+  notchedBox(ctx, PAD, y, innerW, roleH, NOTCH_TR_BL);
+  ctx.fillStyle = BLACK;
+  ctx.font = `700 15px ${FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(
+    titleCase(template.role || "—"),
+    PAD + 14,
+    y + roleH / 2 + 1,
+  );
+  y += roleH + 8;
 
-  // --- STATS banner + REPUTATION ---
-  const bannerH = 22;
-  banner(ctx, PAD, y, 90, bannerH, "STATS");
+  // --- STATS flag + REPUTATION right ---
+  const flagH = 22;
+  flagBanner(ctx, PAD, y, 70, flagH, "Stats");
   ctx.fillStyle = BLACK;
   ctx.font = `700 11px ${FONT}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText(
     `REPUTATION: ${template.reputation}`,
-    W - PAD - 4,
-    y + bannerH / 2,
+    W - PAD,
+    y + flagH / 2,
   );
-  y += bannerH + 6;
+  y += flagH + 6;
 
-  // --- Stats row: INIT / COOL / MOVE ---
-  const sRow: { label: string; value: number }[] = [
+  // --- Stats row: COM# / INIT / COOL / MOVE ---
+  // Spec says: skip COM# on small card; show INIT/COOL/MOVE.
+  // Example image shows COM# too — keep it for visual fidelity, but it's
+  // displayed as a derived combat number from REF.
+  const statRow = [
+    { label: "COM #", value: template.stats.ref },
     { label: "INIT", value: template.stats.ref },
     { label: "COOL", value: template.stats.cool },
     { label: "MOVE", value: template.stats.move },
   ];
-  const sBoxW = (W - 2 * PAD - 2 * 6) / 3;
-  const sBoxH = 38;
-  for (let i = 0; i < sRow.length; i++) {
-    statBox(
+  const cellW = innerW / 4;
+  for (let i = 0; i < statRow.length; i++) {
+    const cx = PAD + i * cellW;
+    const tagW = i === 0 ? 56 : 46;
+    const tagH = 22;
+    tagAndValue(
       ctx,
-      PAD + i * (sBoxW + 6),
+      cx,
       y,
-      sBoxW,
-      sBoxH,
-      sRow[i].label,
-      sRow[i].value,
+      tagW,
+      tagH,
+      statRow[i].label,
+      String(statRow[i].value),
+      6,
+      24,
     );
   }
-  y += sBoxH + 8;
+  y += 32;
 
-  // --- Skill bases ---
-  banner(ctx, PAD, y, W - 2 * PAD, bannerH, "IMPORTANT SKILL BASES");
-  y += bannerH;
-  const innerW = W - 2 * PAD - 16;
+  // --- IMPORTANT SKILL BASES ---
+  flagBanner(ctx, PAD, y, 200, flagH, "Important Skill Bases");
+  y += flagH + 4;
   const skillsActive = template.skills.filter((s) => s.level > 0);
   ctx.font = `400 12px ${FONT}`;
   const skillsText = skillsActive.length
@@ -288,18 +378,21 @@ export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
         .map((s) => `${s.name} ${skillTotal(template.stats, s)}`)
         .join(" · ")
     : "—";
-  const skillLines = wrap(ctx, skillsText, innerW);
+  const innerBoxW = innerW;
+  const innerTextW = innerBoxW - 24;
+  const skillLines = wrap(ctx, skillsText, innerTextW);
   const skillH = Math.max(36, skillLines.length * 16 + 14);
-  box(ctx, PAD, y, W - 2 * PAD, skillH);
+  notchedBox(ctx, PAD, y, innerBoxW, skillH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, skillLines, PAD + 8, y + 8, 16);
-  y += skillH + 6;
+  drawWrapped(ctx, skillLines, PAD + 12, y + 8, 16);
+  y += skillH + 8;
 
-  // --- Attacks ---
-  banner(ctx, PAD, y, W - 2 * PAD, bannerH, "ATTACKS");
-  y += bannerH + 4;
+  // --- ATTACKS ---
+  flagBanner(ctx, PAD, y, 88, flagH, "Attacks");
+  y += flagH + 4;
   const dmgW = 70;
   const rowH = 30;
+  const attackNameW = innerW - dmgW - 6;
   if (template.weapons.length === 0) {
     ctx.fillStyle = FAINT;
     ctx.font = `400 12px ${FONT}`;
@@ -311,62 +404,66 @@ export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
   for (const w of template.weapons) {
     const cnum = weaponCombatNumber(template, w.weaponType);
     const cTag = cnum != null ? `  #${cnum}` : "";
-    const left = `${(w.name || "—").toUpperCase()} (ROF${w.rof})${cTag}`;
-    const leftW = W - 2 * PAD - dmgW - 6;
-    box(ctx, PAD, y, leftW, rowH);
+    const left = `${titleCase(w.name || "—")} (ROF${w.rof})${cTag}`;
+    notchedBox(ctx, PAD, y, attackNameW, rowH, NOTCH_TR_BL);
     ctx.fillStyle = BLACK;
-    ctx.font = `700 12px ${FONT}`;
+    ctx.font = `700 14px ${FONT}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(left, PAD + 10, y + rowH / 2);
+    ctx.fillText(left, PAD + 12, y + rowH / 2 + 1);
 
-    const dx = PAD + leftW + 6;
-    box(ctx, dx, y, dmgW, rowH);
-    ctx.font = `700 16px ${FONT}`;
+    const dx = PAD + attackNameW + 6;
+    notchedBox(ctx, dx, y, dmgW, rowH, NOTCH_TR_BL);
+    ctx.font = `800 17px ${FONT}`;
     ctx.textAlign = "center";
-    ctx.fillText(`${w.damage}D6`, dx + dmgW / 2, y + rowH / 2);
+    ctx.fillText(
+      `${w.damage}D6`,
+      dx + dmgW / 2,
+      y + rowH / 2 + 1,
+    );
     y += rowH + 4;
   }
   y += 4;
 
-  // --- Armor ---
-  banner(ctx, PAD, y, W - 2 * PAD, bannerH, "ARMOR (HEAD/BODY)");
-  y += bannerH + 4;
+  // --- ARMOR (HEAD/BODY) ---
+  flagBanner(ctx, PAD, y, 170, flagH, "Armor (Head/Body)");
+  y += flagH + 4;
   const spW = 70;
-  const armorNameW = W - 2 * PAD - spW - 6;
-  box(ctx, PAD, y, armorNameW, rowH);
+  const armorNameW = innerW - spW - 6;
+  notchedBox(ctx, PAD, y, armorNameW, rowH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  ctx.font = `700 12px ${FONT}`;
+  ctx.font = `700 14px ${FONT}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const armorName = `${template.armor.head.name || "—"} / ${
-    template.armor.body.name || "—"
-  }`;
-  ctx.fillText(armorName.toUpperCase(), PAD + 10, y + rowH / 2);
+  ctx.fillText(
+    `${titleCase(template.armor.head.name || "—")} / ${titleCase(template.armor.body.name || "—")}`,
+    PAD + 12,
+    y + rowH / 2 + 1,
+  );
   const sx = PAD + armorNameW + 6;
-  box(ctx, sx, y, spW, rowH);
-  ctx.font = `700 16px ${FONT}`;
+  notchedBox(ctx, sx, y, spW, rowH, NOTCH_TR_BL);
+  ctx.font = `800 17px ${FONT}`;
   ctx.textAlign = "center";
   ctx.fillText(
     `${template.armor.head.sp}/${template.armor.body.sp}`,
     sx + spW / 2,
-    y + rowH / 2,
+    y + rowH / 2 + 1,
   );
   y += rowH + 8;
 
-  // --- Gear & Cyberware ---
-  banner(ctx, PAD, y, W - 2 * PAD, bannerH, "IMPORTANT GEAR & CYBERWARE");
-  y += bannerH;
+  // --- IMPORTANT GEAR & CYBERWARE ---
+  flagBanner(ctx, PAD, y, 240, flagH, "Important Gear & Cyberware");
+  y += flagH + 4;
   const gearItems = [...template.gear, ...template.cyberware]
     .map((s) => s.trim())
     .filter(Boolean);
   ctx.font = `400 12px ${FONT}`;
   const gearText = gearItems.length ? gearItems.join(" · ") : "—";
-  const gearLines = wrap(ctx, gearText, innerW);
+  const gearLines = wrap(ctx, gearText, innerTextW);
   const gearH = Math.max(36, gearLines.length * 16 + 14);
-  box(ctx, PAD, y, W - 2 * PAD, gearH);
+  notchedBox(ctx, PAD, y, innerW, gearH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, gearLines, PAD + 8, y + 8, 16);
+  drawWrapped(ctx, gearLines, PAD + 12, y + 8, 16);
   y += gearH + PAD;
 
   return crop(stage.canvas, W, y, dpr);
@@ -375,99 +472,127 @@ export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
 // ---------- Big card ----------
 
 export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
-  const W = 960;
-  const PAD = 14;
+  const W = 920;
+  const PAD = 12;
   const dpr = 2;
   const stage = makeStage(W, dpr);
   const ctx = stage.ctx;
-  let y = PAD;
-
   const innerW = W - 2 * PAD;
   const maxHp = maxHpFromStats(template.stats);
   const seriouslyWounded = Math.ceil(maxHp / 2);
+  let y = PAD;
 
   // --- Header rows ---
-  const idH = 38;
-  // Row 1: NAME | REP | SERIOUSLY WOUNDED | HP
-  const hpW = 90;
+  const rowH = 36;
+  const gap = 4;
+  const hpW = 76;
+
+  // Compute: NAME(...) | REP(small) | SERIOUSLY WOUNDED(med) | HP(small, tall)
+  const repW = 80;
   const swW = 200;
-  const repW = 90;
-  const nameW = innerW - hpW - swW - repW - 3 * 6;
+  const nameW = innerW - hpW - swW - repW - 3 * gap;
 
-  labelBox(ctx, PAD, y, nameW, idH, "NAME", template.name.toUpperCase() || "—", {
-    valueAlign: "left",
-    valueFont: `700 18px ${FONT}`,
-  });
-  let rx = PAD + nameW + 6;
-  labelBox(ctx, rx, y, repW, idH, "REP", String(template.reputation));
-  rx += repW + 6;
-  labelBox(ctx, rx, y, swW, idH, "SERIOUSLY WOUNDED", String(seriouslyWounded));
-  rx += swW + 6;
-  // HP box (tall, spans both rows)
-  box(ctx, rx, y, hpW, idH * 2 + 6);
+  // HP block: filled red, tall (spans both rows)
+  const hpH = rowH * 2 + gap;
+  const hpX = PAD + innerW - hpW;
+  notchPath(ctx, hpX, y, hpW, hpH, NOTCH_TR_BL);
   ctx.fillStyle = RED;
-  ctx.fillRect(rx + 1, y + 1, hpW - 2, 18);
+  ctx.fill();
+  ctx.lineWidth = STROKE;
+  ctx.strokeStyle = RED;
+  ctx.stroke();
   ctx.fillStyle = WHITE;
-  ctx.font = `700 11px ${FONT}`;
-  ctx.textAlign = "center";
+  ctx.font = `800 12px ${FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("HP", hpX + 8, y + 6);
+  ctx.font = `900 36px ${FONT}`;
+  ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillText("HP", rx + hpW / 2, y + 10);
-  ctx.fillStyle = BLACK;
-  ctx.font = `700 32px ${FONT}`;
-  ctx.fillText(String(maxHp), rx + hpW / 2, y + 18 + (idH * 2 + 6 - 18) / 2);
+  ctx.fillText(String(maxHp), hpX + hpW - 10, y + hpH / 2 + 2);
 
-  y += idH + 6;
-
-  // Row 2: ROLE | DEATH SAVE
-  const dsW = swW + repW + 6;
-  labelBox(ctx, PAD, y, nameW, idH, "ROLE", (template.role || "—").toUpperCase(), {
-    valueAlign: "left",
-    valueFont: `700 16px ${FONT}`,
-  });
-  labelBox(
+  // Row 1 cells
+  drawTagCell(ctx, PAD, y, nameW, rowH, "NAME", template.name || "—", "left", 18);
+  let cellX = PAD + nameW + gap;
+  drawTagCell(ctx, cellX, y, repW, rowH, "REP", String(template.reputation), "right", 22);
+  cellX += repW + gap;
+  drawTagCell(
     ctx,
-    PAD + nameW + 6,
+    cellX,
     y,
-    dsW,
-    idH,
+    swW,
+    rowH,
+    "SERIOUSLY WOUNDED",
+    String(seriouslyWounded),
+    "right",
+    22,
+  );
+  y += rowH + gap;
+
+  // Row 2 cells (HP continues from row 1)
+  drawTagCell(
+    ctx,
+    PAD,
+    y,
+    nameW,
+    rowH,
+    "ROLE",
+    titleCase(template.role || "—"),
+    "left",
+    16,
+  );
+  drawTagCell(
+    ctx,
+    PAD + nameW + gap,
+    y,
+    repW + swW + gap,
+    rowH,
     "DEATH SAVE",
     String(template.stats.body),
+    "right",
+    22,
   );
-  y += idH + 8;
+  y += rowH + 8;
 
-  // --- Stats row (9 stats) ---
-  const stats9Gap = 4;
-  const stats9W = (innerW - 8 * stats9Gap) / 9;
-  const stats9H = 42;
+  // --- STATS row (no banner; just labelled tags inline) ---
+  const flagH = 22;
+  flagBanner(ctx, PAD, y, 80, flagH, "Stats");
+  y += flagH + 4;
+
+  const statCellW = (innerW - 8 * gap) / 9;
+  const statTagW = Math.min(48, statCellW * 0.45);
+  const statH = 28;
   for (let i = 0; i < STAT_KEYS.length; i++) {
     const k = STAT_KEYS[i];
-    statBox(
+    const cx = PAD + i * (statCellW + gap);
+    tagAndValue(
       ctx,
-      PAD + i * (stats9W + stats9Gap),
+      cx,
       y,
-      stats9W,
-      stats9H,
+      statTagW,
+      statH,
       k.toUpperCase(),
-      template.stats[k],
+      String(template.stats[k]),
+      6,
+      22,
     );
   }
-  y += stats9H + 10;
+  y += statH + 10;
 
   // --- WEAPONS / ARMOR split ---
-  const bannerH = 22;
   const splitGap = 14;
   const leftW = Math.floor((innerW - splitGap) * 0.62);
   const rightW = innerW - splitGap - leftW;
-  banner(ctx, PAD, y, leftW, bannerH, "WEAPONS");
-  banner(ctx, PAD + leftW + splitGap, y, rightW, bannerH, "ARMOR");
-  let lY = y + bannerH + 4;
-  let rY = y + bannerH + 4;
+  flagBanner(ctx, PAD, y, 110, flagH, "Weapons");
+  flagBanner(ctx, PAD + leftW + splitGap, y, 100, flagH, "Armor");
+  let lY = y + flagH + 4;
+  let rY = y + flagH + 4;
 
-  // weapons rows
-  const wRowH = 30;
-  const wDmgW = 70;
-  const wRofW = 70;
-  const wNameW = leftW - wDmgW - wRofW - 12;
+  // weapon rows
+  const wRowH = 32;
+  const wDmgW = 64;
+  const wRofW = 64;
+  const wNameW = leftW - wDmgW - wRofW - 2 * gap;
   if (template.weapons.length === 0) {
     ctx.fillStyle = FAINT;
     ctx.font = `400 12px ${FONT}`;
@@ -479,28 +604,29 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   for (const w of template.weapons) {
     const cnum = weaponCombatNumber(template, w.weaponType);
     const cTag = cnum != null ? ` (C#: ${cnum})` : "";
-    const wLabel = `${(w.name || "—").toUpperCase()}${cTag}`;
-    box(ctx, PAD, lY, wNameW, wRowH);
+    const wLabel = `${titleCase(w.name || "—")}${cTag}`;
+    notchedBox(ctx, PAD, lY, wNameW, wRowH, NOTCH_TR_BL);
     ctx.fillStyle = BLACK;
-    ctx.font = `700 13px ${FONT}`;
+    ctx.font = `700 14px ${FONT}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(wLabel, PAD + 10, lY + wRowH / 2);
+    ctx.fillText(wLabel, PAD + 12, lY + wRowH / 2 + 1);
 
-    let bx = PAD + wNameW + 6;
-    box(ctx, bx, lY, wRofW, wRowH);
+    let bx = PAD + wNameW + gap;
+    notchedBox(ctx, bx, lY, wRofW, wRowH, NOTCH_TR_BL);
     ctx.textAlign = "center";
-    ctx.font = `700 14px ${FONT}`;
-    ctx.fillText(`ROF${w.rof}`, bx + wRofW / 2, lY + wRowH / 2);
-    bx += wRofW + 6;
-    box(ctx, bx, lY, wDmgW, wRowH);
-    ctx.fillText(`${w.damage}D6`, bx + wDmgW / 2, lY + wRowH / 2);
+    ctx.font = `800 15px ${FONT}`;
+    ctx.fillText(`ROF${w.rof}`, bx + wRofW / 2, lY + wRowH / 2 + 1);
+    bx += wRofW + gap;
+    notchedBox(ctx, bx, lY, wDmgW, wRowH, NOTCH_TR_BL);
+    ctx.fillText(`${w.damage}D6`, bx + wDmgW / 2, lY + wRowH / 2 + 1);
     lY += wRowH + 4;
   }
 
-  // armor rows (Head, then Body)
-  const aSpW = 70;
-  const aNameW = rightW - aSpW - 6;
+  // armor rows: HEAD then BODY, with small "HEAD"/"BODY" red tag prefix
+  const aSpW = 64;
+  const aTagW = 36;
+  const aNameW = rightW - aSpW - aTagW - 2 * gap;
   const armorRows: { label: string; name: string; sp: number }[] = [
     {
       label: "HEAD",
@@ -515,37 +641,45 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   ];
   for (const a of armorRows) {
     const ax = PAD + leftW + splitGap;
-    box(ctx, ax, rY, aNameW, wRowH);
-    // tiny corner label
+    // small label tag (filled red, white text)
+    notchPath(ctx, ax, rY, aTagW, wRowH, NOTCH_TR_BL);
     ctx.fillStyle = RED;
-    ctx.font = `700 9px ${FONT}`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(a.label, ax + 6, rY + 4);
+    ctx.fill();
+    ctx.lineWidth = STROKE;
+    ctx.strokeStyle = RED;
+    ctx.stroke();
+    ctx.fillStyle = WHITE;
+    ctx.font = `800 11px ${FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(a.label, ax + aTagW / 2, rY + wRowH / 2 + 1);
+
+    const nx = ax + aTagW + gap;
+    notchedBox(ctx, nx, rY, aNameW, wRowH, NOTCH_TR_BL);
     ctx.fillStyle = BLACK;
-    ctx.font = `700 13px ${FONT}`;
+    ctx.font = `700 14px ${FONT}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(a.name.toUpperCase(), ax + 36, rY + wRowH / 2);
+    ctx.fillText(titleCase(a.name), nx + 12, rY + wRowH / 2 + 1);
 
-    const sx2 = ax + aNameW + 6;
-    box(ctx, sx2, rY, aSpW, wRowH);
-    ctx.font = `700 14px ${FONT}`;
+    const sx2 = nx + aNameW + gap;
+    notchedBox(ctx, sx2, rY, aSpW, wRowH, NOTCH_TR_BL);
+    ctx.font = `800 15px ${FONT}`;
     ctx.textAlign = "center";
-    ctx.fillText(`SP${a.sp}`, sx2 + aSpW / 2, rY + wRowH / 2);
+    ctx.fillText(`SP${a.sp}`, sx2 + aSpW / 2, rY + wRowH / 2 + 1);
     rY += wRowH + 4;
   }
 
   y = Math.max(lY, rY) + 6;
 
   // --- SKILL BASES ---
-  banner(ctx, PAD, y, innerW, bannerH, "SKILL BASES");
-  y += bannerH;
+  flagBanner(ctx, PAD, y, 130, flagH, "Skill Bases");
+  y += flagH + 4;
+  const innerSkillW = innerW - 24;
+  const allSkills = template.skills
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
   ctx.font = `400 12px ${FONT}`;
-  const innerSkillW = innerW - 16;
-  const allSkills = template.skills.slice().sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
   const skillsText = allSkills.length
     ? allSkills
         .map((s) => `${s.name} ${skillTotal(template.stats, s)}`)
@@ -553,39 +687,84 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
     : "—";
   const skillLines = wrap(ctx, skillsText, innerSkillW);
   const skillH = Math.max(36, skillLines.length * 16 + 14);
-  box(ctx, PAD, y, innerW, skillH);
+  notchedBox(ctx, PAD, y, innerW, skillH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, skillLines, PAD + 8, y + 8, 16);
+  drawWrapped(ctx, skillLines, PAD + 12, y + 8, 16);
   y += skillH + 6;
 
   // --- GEAR ---
-  banner(ctx, PAD, y, innerW, bannerH, "GEAR");
-  y += bannerH;
+  flagBanner(ctx, PAD, y, 80, flagH, "Gear");
+  y += flagH + 4;
   const gear = template.gear.map((s) => s.trim()).filter(Boolean);
   const gearText = gear.length ? gear.join(" · ") : "—";
   ctx.font = `400 12px ${FONT}`;
   const gearLines = wrap(ctx, gearText, innerSkillW);
   const gearH = Math.max(28, gearLines.length * 16 + 14);
-  box(ctx, PAD, y, innerW, gearH);
+  notchedBox(ctx, PAD, y, innerW, gearH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, gearLines, PAD + 8, y + 8, 16);
+  drawWrapped(ctx, gearLines, PAD + 12, y + 8, 16);
   y += gearH + 6;
 
   // --- CYBERWARE ---
-  banner(ctx, PAD, y, innerW, bannerH, "CYBERWARE");
-  y += bannerH;
+  flagBanner(ctx, PAD, y, 100, flagH, "Cyberware");
+  y += flagH + 4;
   const cyber = template.cyberware.map((s) => s.trim()).filter(Boolean);
   const cyberText = cyber.length ? cyber.join(" · ") : "—";
   ctx.font = `400 12px ${FONT}`;
   const cyberLines = wrap(ctx, cyberText, innerSkillW);
   const cyberH = Math.max(28, cyberLines.length * 16 + 14);
-  box(ctx, PAD, y, innerW, cyberH);
+  notchedBox(ctx, PAD, y, innerW, cyberH, NOTCH_TR_BL);
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, cyberLines, PAD + 8, y + 8, 16);
+  drawWrapped(ctx, cyberLines, PAD + 12, y + 8, 16);
   y += cyberH + PAD;
 
   return crop(stage.canvas, W, y, dpr);
 }
 
-// Re-export helpers used by the unused-tree-shake friendly check
-export type { EnemyStatBlock };
+// Small label-prefix cell used in big-card identity rows.
+function drawTagCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  label: string,
+  value: string,
+  align: "left" | "right",
+  valueSize: number,
+) {
+  notchedBox(ctx, x, y, w, h, NOTCH_TR_BL);
+  // small red filled tag at top-left
+  const tagW = Math.max(40, ctx.measureText(label).width + 16);
+  notchPath(ctx, x, y, tagW, 16, NOTCH_TR);
+  ctx.fillStyle = RED;
+  ctx.fill();
+  ctx.fillStyle = WHITE;
+  ctx.font = `800 9px ${FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + 6, y + 9);
+  // value
+  ctx.fillStyle = BLACK;
+  ctx.font = `800 ${valueSize}px ${FONT}`;
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  const valueX = align === "right" ? x + w - 10 : x + 8;
+  ctx.fillText(value, valueX, y + 16 + (h - 16) / 2 + 1);
+}
+
+// "solo: combat awareness 2" → "Solo: Combat Awareness 2"
+// All-caps short tokens like "SMG" or "ROF2" are preserved as-is.
+function titleCase(s: string): string {
+  return s
+    .split(/(\s+|:)/)
+    .map((part) => {
+      if (!part || part === ":" || /^\s+$/.test(part)) return part;
+      // Keep all-caps short tokens (acronyms, abbreviations).
+      if (part === part.toUpperCase() && /[A-Z]/.test(part) && part.length <= 5) {
+        return part;
+      }
+      return part[0].toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join("");
+}
