@@ -605,13 +605,17 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   const rowH = 46;
   const headerGap = 6;
   const headerH = rowH * 2 + headerGap;
-  // NAME / ROLE take roughly half the card width; REP / SW / DS shrink to
-  // hug their numbers; HP polygon takes the remainder on the far right.
-  const nameW = Math.floor(W * 0.5);
-  const repW = 88;
-  const swW = 160;
+
+  const leftGridW = 720; 
+
+  const repW = 100; 
+  const swW = 130;  
+  const nameW = leftGridW - repW - swW - (2 * headerGap); 
+
+  const dsW = swW;
+  const roleW = leftGridW - dsW - headerGap;
+
   const hpDiagonal = 28;
-  const leftGridW = nameW + repW + swW + 2 * headerGap;
   const hpW = innerW - leftGridW - 8;
 
   // HP polygon — solid red with sharp diagonal cut on its left edge.
@@ -641,11 +645,14 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   ctx.textBaseline = "middle";
   ctx.fillText("HP", hpX + hpDiagonal - 4, y + 14);
 
-  // Header grid columns: row 1 = NAME | REP | SW; row 2 = ROLE | DEATH SAVE
-  // (DEATH SAVE spans the REP + SW columns).
-  const dsW = repW + headerGap + swW;
-
   // Row 1
+  ctx.font = `800 11px ${FONT_HEADER}`;
+  const swLabelW = Math.max(
+    ctx.measureText("SERIOUSLY").width,
+    ctx.measureText("WOUNDED").width
+  );
+  const rightColStripW = Math.max(58, swLabelW + 18);
+
   headerCell(ctx, PAD, y, nameW, rowH, "NAME", template.name || "—", {
     valueAlign: "left",
     valueSize: 24,
@@ -670,15 +677,17 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
       valueAlign: "center",
       valueSize: 26,
       valueFont: FONT_STENCIL,
+      labelStripWidth: rightColStripW,
     },
   );
+  
   // Row 2
   const y2 = y + rowH + headerGap;
   headerCell(
     ctx,
     PAD,
     y2,
-    nameW,
+    roleW,
     rowH,
     "ROLE",
     titleCase(template.role || "—"),
@@ -690,7 +699,7 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   );
   headerCell(
     ctx,
-    PAD + nameW + headerGap,
+    PAD + roleW + headerGap,
     y2,
     dsW,
     rowH,
@@ -700,6 +709,7 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
       valueAlign: "center",
       valueSize: 26,
       valueFont: FONT_STENCIL,
+      labelStripWidth: rightColStripW,
     },
   );
   y += headerH + 12;
@@ -899,6 +909,7 @@ function headerCell(
     valueAlign: "left" | "center" | "right";
     valueSize: number;
     valueFont: string;
+    labelStripWidth?: number;
   },
 ) {
   // outer box
