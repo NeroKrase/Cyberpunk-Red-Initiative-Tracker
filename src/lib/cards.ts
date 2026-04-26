@@ -434,19 +434,17 @@ export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
   thinRule(ctx, PAD, y, innerW);
   y += 8;
 
-  // Stats row: COM # | INIT | COOL | MOVE
+  // Stats row: INIT | COOL | MOVE
   const statRow: { label: string; value: number }[] = [
-    { label: "COM #", value: template.stats.ref },
     { label: "INIT", value: template.stats.ref },
     { label: "COOL", value: template.stats.cool },
     { label: "MOVE", value: template.stats.move },
   ];
   const statRowH = 38;
-  // Each cell takes innerW/4; reticle label width fixed-ish, big number to its right.
-  const cellW = innerW / 4;
+  const cellW = innerW / statRow.length;
   for (let i = 0; i < statRow.length; i++) {
     const cx = PAD + i * cellW;
-    const lblW = i === 0 ? 56 : 46;
+    const lblW = 50;
     const lblH = 22;
     const lblY = y + (statRowH - lblH) / 2;
     reticleLabel(ctx, cx + 4, lblY, lblW, lblH, statRow[i].label);
