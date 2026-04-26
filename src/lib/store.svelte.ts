@@ -50,6 +50,9 @@ function migrate(data: StoreData) {
   for (const raw of data.templates as unknown[]) {
     migrateStatBlock(raw as Record<string, unknown>);
   }
+  for (const raw of data.weaponTemplates as unknown[]) {
+    migrateWeaponTemplate(raw as Record<string, unknown>);
+  }
 }
 
 function migrateCombatant(c: Record<string, unknown>) {
@@ -67,6 +70,7 @@ function migrateCombatant(c: Record<string, unknown>) {
 function migrateStatBlock(c: Record<string, unknown>) {
   c.armor ??= { head: { name: "", sp: 0 }, body: { name: "", sp: 0 } };
   c.role ??= "";
+  c.reputation ??= 0;
   c.stats ??= emptyStats();
   c.weapons ??= [];
   c.gear ??= [];
@@ -84,6 +88,7 @@ function migrateStatBlock(c: Record<string, unknown>) {
       }
       w.ammo ??= 0;
       w.description ??= "";
+      w.weaponType ??= "";
     }
   }
   if (Array.isArray(c.skills)) {
@@ -93,6 +98,19 @@ function migrateStatBlock(c: Record<string, unknown>) {
   } else {
     c.skills = [];
   }
+}
+
+function migrateWeaponTemplate(t: Record<string, unknown>) {
+  if (typeof t.damage === "string") {
+    const m = (t.damage as string).match(/(\d+)/);
+    t.damage = m ? Number(m[1]) : 0;
+  } else if (typeof t.damage !== "number") {
+    t.damage = 0;
+  }
+  t.rof ??= 1;
+  t.ammo ??= 0;
+  t.description ??= "";
+  t.weaponType ??= "";
 }
 
 function save() {
@@ -286,12 +304,22 @@ export function applyDamage(
   damage: number,
   location: ArmorLocation,
 ) {
+  console.log("Отримана шкода у локацію:", location);
+
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant || combatant.kind !== "enemy" || damage <= 0) return;
+  
   const enemy = combatant as Enemy;
   const sp = enemy.armor[location].sp;
+  
   if (damage > sp) {
-    enemy.hp -= damage - sp;
+    // Перевіряємо, чи влучання прийшлося в голову
+    if (location === "head") {
+      enemy.hp -= (damage - sp) * 2;
+    } else {
+      enemy.hp -= damage - sp;
+    }
+    
     if (sp > 0) enemy.armor[location].sp = sp - 1;
   }
   save();
