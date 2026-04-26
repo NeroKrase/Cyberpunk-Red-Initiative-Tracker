@@ -588,11 +588,11 @@ export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
   return crop(stage.canvas, W, y, dpr);
 }
 
-// ---------- Big card (kept from previous redesign) ----------
+// ---------- Big card ----------
 
 export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   const W = 920;
-  const PAD = 12;
+  const PAD = 14;
   const dpr = 2;
   const stage = makeStage(W, dpr);
   const ctx = stage.ctx;
@@ -601,110 +601,148 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   const seriouslyWounded = Math.ceil(maxHp / 2);
   let y = PAD;
 
-  // --- Header rows ---
-  const rowH = 36;
-  const gap = 4;
-  const hpW = 76;
-  const repW = 80;
-  const swW = 200;
-  const nameW = innerW - hpW - swW - repW - 3 * gap;
+  // -------- Complex header grid + HP polygon ---------
+  const rowH = 46;
+  const headerGap = 6;
+  const headerH = rowH * 2 + headerGap;
+  const hpW = 130;
+  const hpDiagonal = 28;
+  const leftGridW = innerW - hpW - 8;
 
-  // HP block: filled red, tall (spans both rows)
-  const hpH = rowH * 2 + gap;
+  // HP polygon — solid red with sharp diagonal cut on its left edge.
   const hpX = PAD + innerW - hpW;
-  chamferPath(ctx, hpX, y, hpW, hpH, { tr: BOX_CHAMFER, bl: BOX_CHAMFER });
   ctx.fillStyle = RED;
+  ctx.beginPath();
+  ctx.moveTo(hpX + hpDiagonal, y);
+  ctx.lineTo(hpX + hpW, y);
+  ctx.lineTo(hpX + hpW, y + headerH);
+  ctx.lineTo(hpX, y + headerH);
+  ctx.closePath();
   ctx.fill();
+  // Big white stencil number
   ctx.fillStyle = WHITE;
-  ctx.font = `700 12px ${FONT_HEADER}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  ctx.fillText("HP", hpX + 8, y + 6);
-  ctx.font = `400 36px ${FONT_STENCIL}`;
+  ctx.font = `400 56px ${FONT_STENCIL}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(
+    String(maxHp),
+    hpX + hpDiagonal + (hpW - hpDiagonal) / 2 + 4,
+    y + headerH / 2 + 4,
+  );
+  // Black "HP" label outside the polygon, in the white triangle.
+  ctx.fillStyle = BLACK;
+  ctx.font = `700 18px ${FONT_HEADER}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(maxHp), hpX + hpW - 10, y + hpH / 2 + 4);
+  ctx.fillText("HP", hpX + hpDiagonal - 4, y + 14);
 
-  // Row 1 cells
-  drawTagCell(ctx, PAD, y, nameW, rowH, "NAME", template.name || "—", "left", 18);
-  let cellX = PAD + nameW + gap;
-  drawTagCell(ctx, cellX, y, repW, rowH, "REP", String(template.reputation), "right", 22);
-  cellX += repW + gap;
-  drawTagCell(
+  // Header grid columns.
+  const nameW = Math.floor(leftGridW * 0.46);
+  const repW = Math.floor(leftGridW * 0.14);
+  const swW = leftGridW - nameW - repW - 2 * headerGap;
+  const dsW = repW + headerGap + swW;
+
+  // Row 1
+  headerCell(ctx, PAD, y, nameW, rowH, "NAME", template.name || "—", {
+    valueAlign: "left",
+    valueSize: 24,
+    valueFont: FONT_HEADER,
+  });
+  let cx = PAD + nameW + headerGap;
+  headerCell(ctx, cx, y, repW, rowH, "REP", String(template.reputation), {
+    valueAlign: "center",
+    valueSize: 26,
+    valueFont: FONT_STENCIL,
+  });
+  cx += repW + headerGap;
+  headerCell(
     ctx,
-    cellX,
+    cx,
     y,
     swW,
     rowH,
-    "SERIOUSLY WOUNDED",
+    "SERIOUSLY\nWOUNDED",
     String(seriouslyWounded),
-    "right",
-    22,
+    {
+      valueAlign: "center",
+      valueSize: 26,
+      valueFont: FONT_STENCIL,
+    },
   );
-  y += rowH + gap;
-
-  // Row 2 cells
-  drawTagCell(
+  // Row 2
+  const y2 = y + rowH + headerGap;
+  headerCell(
     ctx,
     PAD,
-    y,
+    y2,
     nameW,
     rowH,
     "ROLE",
     titleCase(template.role || "—"),
-    "left",
-    16,
+    {
+      valueAlign: "left",
+      valueSize: 18,
+      valueFont: FONT_HEADER,
+    },
   );
-  drawTagCell(
+  headerCell(
     ctx,
-    PAD + nameW + gap,
-    y,
-    repW + swW + gap,
+    PAD + nameW + headerGap,
+    y2,
+    dsW,
     rowH,
-    "DEATH SAVE",
+    "DEATH\nSAVE",
     String(template.stats.body),
-    "right",
-    22,
+    {
+      valueAlign: "center",
+      valueSize: 26,
+      valueFont: FONT_STENCIL,
+    },
   );
-  y += rowH + 8;
+  y += headerH + 12;
 
-  // --- STATS section ---
-  const tabH = 24;
+  // -------- STATS section ---------
+  const tabH = 26;
   sectionTab(ctx, PAD, y, 86, tabH, "Stats");
-  y += tabH + 6;
+  y += tabH + 8;
 
-  const statCellW = (innerW - 8 * gap) / 9;
-  const statTagW = Math.min(48, statCellW * 0.45);
-  const statH = 28;
+  // 9 stats with reticle labels
+  const statCellW = (innerW - 8 * 6) / 9;
+  const statTagW = Math.min(46, statCellW * 0.5);
+  const statH = 26;
   for (let i = 0; i < STAT_KEYS.length; i++) {
     const k = STAT_KEYS[i];
-    const cx = PAD + i * (statCellW + gap);
-    reticleLabel(ctx, cx, y + (statH - 22) / 2, statTagW, 22, k.toUpperCase());
+    const cellX = PAD + i * (statCellW + 6);
+    reticleLabel(ctx, cellX, y, statTagW, statH, k.toUpperCase());
     ctx.fillStyle = BLACK;
     ctx.font = `400 22px ${FONT_STENCIL}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText(
       String(template.stats[k]),
-      cx + statTagW + 6,
+      cellX + statTagW + 6,
       y + statH / 2 + 2,
     );
   }
   y += statH + 10;
+  thinRule(ctx, PAD, y, innerW);
+  y += 12;
 
-  // --- WEAPONS / ARMOR split ---
-  const splitGap = 14;
+  // -------- WEAPONS / ARMOR split --------
+  const splitGap = 16;
   const leftW = Math.floor((innerW - splitGap) * 0.62);
   const rightW = innerW - splitGap - leftW;
   sectionTab(ctx, PAD, y, 110, tabH, "Weapons");
   sectionTab(ctx, PAD + leftW + splitGap, y, 100, tabH, "Armor");
-  let lY = y + tabH + 6;
-  let rY = y + tabH + 6;
+  let lY = y + tabH + 8;
+  let rY = y + tabH + 8;
 
-  const wRowH = 32;
-  const wDmgW = 64;
-  const wRofW = 64;
-  const wNameW = leftW - wDmgW - wRofW - 2 * gap;
+  // weapon rows: name | rof | dmg
+  const wRowH = 34;
+  const wDmgW = 70;
+  const wRofW = 70;
+  const wGap = 6;
+  const wNameW = leftW - wDmgW - wRofW - 2 * wGap;
   if (template.weapons.length === 0) {
     ctx.fillStyle = FAINT;
     ctx.font = `400 12px ${FONT_BODY}`;
@@ -719,26 +757,31 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
     const wLabel = `${titleCase(w.name || "—")}${cTag}`;
     thickRedBox(ctx, PAD, lY, wNameW, wRowH, { tr: BOX_CHAMFER });
     ctx.fillStyle = BLACK;
-    ctx.font = `700 14px ${FONT_HEADER}`;
+    ctx.font = `700 15px ${FONT_HEADER}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText(wLabel, PAD + 12, lY + wRowH / 2 + 1);
 
-    let bx = PAD + wNameW + gap;
+    let bx = PAD + wNameW + wGap;
     thickRedBox(ctx, bx, lY, wRofW, wRowH, { tr: BOX_CHAMFER });
+    ctx.fillStyle = BLACK;
     ctx.textAlign = "center";
-    ctx.font = `400 18px ${FONT_STENCIL}`;
+    ctx.textBaseline = "middle";
+    ctx.font = `400 19px ${FONT_STENCIL}`;
     ctx.fillText(`ROF${w.rof}`, bx + wRofW / 2, lY + wRowH / 2 + 2);
-    bx += wRofW + gap;
+    bx += wRofW + wGap;
     thickRedBox(ctx, bx, lY, wDmgW, wRowH, { tr: BOX_CHAMFER });
+    ctx.fillStyle = BLACK;
+    ctx.font = `400 19px ${FONT_STENCIL}`;
+    ctx.textAlign = "center";
     ctx.fillText(`${w.damage}D6`, bx + wDmgW / 2, lY + wRowH / 2 + 2);
-    lY += wRowH + 4;
+    lY += wRowH + 6;
   }
 
-  // armor rows: HEAD then BODY
-  const aSpW = 64;
-  const aTagW = 36;
-  const aNameW = rightW - aSpW - aTagW - 2 * gap;
+  // armor rows: vertical label | name box | sp box
+  const armorTagW = 22;
+  const aSpW = 70;
+  const aNameW = rightW - armorTagW - aSpW - 2 * wGap;
   const armorRows: { label: string; name: string; sp: number }[] = [
     {
       label: "HEAD",
@@ -751,85 +794,97 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
       sp: template.armor.body.sp,
     },
   ];
+  const armorX = PAD + leftW + splitGap;
   for (const a of armorRows) {
-    const ax = PAD + leftW + splitGap;
-    chamferPath(ctx, ax, rY, aTagW, wRowH, { tr: BOX_CHAMFER });
+    // vertical red label, reading upwards (rotated -90°)
+    ctx.save();
+    ctx.translate(armorX + armorTagW / 2, rY + wRowH / 2);
+    ctx.rotate(-Math.PI / 2);
     ctx.fillStyle = RED;
-    ctx.fill();
-    ctx.fillStyle = WHITE;
-    ctx.font = `700 11px ${FONT_HEADER}`;
+    ctx.font = `800 14px ${FONT_HEADER}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(a.label, ax + aTagW / 2, rY + wRowH / 2 + 1);
+    ctx.fillText(a.label, 0, 0);
+    ctx.restore();
 
-    const nx = ax + aTagW + gap;
+    const nx = armorX + armorTagW + wGap;
     thickRedBox(ctx, nx, rY, aNameW, wRowH, { tr: BOX_CHAMFER });
     ctx.fillStyle = BLACK;
-    ctx.font = `700 14px ${FONT_HEADER}`;
+    ctx.font = `700 15px ${FONT_HEADER}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText(titleCase(a.name), nx + 12, rY + wRowH / 2 + 1);
 
-    const sx2 = nx + aNameW + gap;
+    const sx2 = nx + aNameW + wGap;
     thickRedBox(ctx, sx2, rY, aSpW, wRowH, { tr: BOX_CHAMFER });
-    ctx.font = `400 18px ${FONT_STENCIL}`;
+    ctx.fillStyle = BLACK;
+    ctx.font = `400 19px ${FONT_STENCIL}`;
     ctx.textAlign = "center";
     ctx.fillText(`SP${a.sp}`, sx2 + aSpW / 2, rY + wRowH / 2 + 2);
-    rY += wRowH + 4;
+    rY += wRowH + 6;
   }
 
   y = Math.max(lY, rY) + 6;
+  thinRule(ctx, PAD, y, innerW);
+  y += 12;
 
-  // --- SKILL BASES ---
+  // -------- SKILL BASES (full-width) --------
   sectionTab(ctx, PAD, y, 130, tabH, "Skill Bases");
-  y += tabH + 4;
-  const innerSkillW = innerW - 24;
+  y += tabH + 8;
+  const innerSkillW = innerW - 4;
   const allSkills = template.skills
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
-  ctx.font = `400 12px ${FONT_BODY}`;
+  ctx.fillStyle = BLACK;
+  ctx.font = `400 13px ${FONT_BODY}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
   const skillsText = allSkills.length
     ? allSkills
         .map((s) => `${s.name} ${skillTotal(template.stats, s)}`)
         .join(" • ")
     : "—";
   const skillLines = wrap(ctx, skillsText, innerSkillW);
-  const skillH = Math.max(36, skillLines.length * 16 + 14);
-  thickRedBox(ctx, PAD, y, innerW, skillH, { tr: BOX_CHAMFER });
-  ctx.fillStyle = BLACK;
-  drawWrapped(ctx, skillLines, PAD + 12, y + 8, 16);
-  y += skillH + 6;
+  drawWrapped(ctx, skillLines, PAD + 2, y, 18);
+  y += skillLines.length * 18 + 8;
+  thinRule(ctx, PAD, y, innerW);
+  y += 12;
 
-  // --- GEAR ---
+  // -------- GEAR (full-width) --------
   sectionTab(ctx, PAD, y, 80, tabH, "Gear");
-  y += tabH + 4;
+  y += tabH + 8;
   const gear = template.gear.map((s) => s.trim()).filter(Boolean);
   const gearText = gear.length ? gear.join(" • ") : "—";
-  ctx.font = `400 12px ${FONT_BODY}`;
-  const gearLines = wrap(ctx, gearText, innerSkillW);
-  const gearH = Math.max(28, gearLines.length * 16 + 14);
-  thickRedBox(ctx, PAD, y, innerW, gearH, { tr: BOX_CHAMFER });
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, gearLines, PAD + 12, y + 8, 16);
-  y += gearH + 6;
+  ctx.font = `400 13px ${FONT_BODY}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const gearLines = wrap(ctx, gearText, innerSkillW);
+  drawWrapped(ctx, gearLines, PAD + 2, y, 18);
+  y += gearLines.length * 18 + 8;
+  thinRule(ctx, PAD, y, innerW);
+  y += 12;
 
-  // --- CYBERWARE ---
-  sectionTab(ctx, PAD, y, 100, tabH, "Cyberware");
-  y += tabH + 4;
+  // -------- CYBERWARE (full-width) --------
+  sectionTab(ctx, PAD, y, 110, tabH, "Cyberware");
+  y += tabH + 8;
   const cyber = template.cyberware.map((s) => s.trim()).filter(Boolean);
   const cyberText = cyber.length ? cyber.join(" • ") : "—";
-  ctx.font = `400 12px ${FONT_BODY}`;
-  const cyberLines = wrap(ctx, cyberText, innerSkillW);
-  const cyberH = Math.max(28, cyberLines.length * 16 + 14);
-  thickRedBox(ctx, PAD, y, innerW, cyberH, { tr: BOX_CHAMFER });
   ctx.fillStyle = BLACK;
-  drawWrapped(ctx, cyberLines, PAD + 12, y + 8, 16);
-  y += cyberH + PAD;
+  ctx.font = `400 13px ${FONT_BODY}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const cyberLines = wrap(ctx, cyberText, innerSkillW);
+  drawWrapped(ctx, cyberLines, PAD + 2, y, 18);
+  y += cyberLines.length * 18 + PAD;
 
   return crop(stage.canvas, W, y, dpr);
 }
 
-function drawTagCell(
+// Draws a thick-red-bordered cell with a red label strip on the left side
+// and the value rendered in the white area to its right. The label may
+// contain "\n" to render two stacked lines (e.g. SERIOUSLY / WOUNDED).
+function headerCell(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -837,23 +892,55 @@ function drawTagCell(
   h: number,
   label: string,
   value: string,
-  align: "left" | "right",
-  valueSize: number,
+  opts: {
+    valueAlign: "left" | "center" | "right";
+    valueSize: number;
+    valueFont: string;
+  },
 ) {
+  // outer box
   thickRedBox(ctx, x, y, w, h, { tr: BOX_CHAMFER });
-  const tagW = Math.max(40, ctx.measureText(label).width + 16);
-  chamferPath(ctx, x, y, tagW, 16, { tr: 8 });
+
+  // left-side red label strip
+  const lines = label.split("\n");
+  ctx.font = `800 11px ${FONT_HEADER}`;
+  let labelW = 0;
+  for (const l of lines) labelW = Math.max(labelW, ctx.measureText(l).width);
+  const stripW = Math.max(58, labelW + 18);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 2, y + 2, stripW, h - 4);
+  ctx.clip();
   ctx.fillStyle = RED;
-  ctx.fill();
+  ctx.fillRect(x, y, stripW + 2, h);
+  ctx.restore();
+
+  // label text
   ctx.fillStyle = WHITE;
-  ctx.font = `700 9px ${FONT_HEADER}`;
-  ctx.textAlign = "left";
+  ctx.font = `800 11px ${FONT_HEADER}`;
+  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, x + 6, y + 9);
+  if (lines.length === 1) {
+    ctx.fillText(lines[0], x + stripW / 2, y + h / 2 + 1);
+  } else {
+    ctx.fillText(lines[0], x + stripW / 2, y + h / 2 - 7);
+    ctx.fillText(lines[1], x + stripW / 2, y + h / 2 + 7);
+  }
+
+  // value
   ctx.fillStyle = BLACK;
-  ctx.font = `400 ${valueSize}px ${FONT_STENCIL}`;
-  ctx.textAlign = align;
+  ctx.font = `${opts.valueFont === FONT_STENCIL ? 400 : 700} ${opts.valueSize}px ${opts.valueFont}`;
   ctx.textBaseline = "middle";
-  const valueX = align === "right" ? x + w - 10 : x + 8;
-  ctx.fillText(value, valueX, y + 16 + (h - 16) / 2 + 1);
+  const valueAreaX = x + stripW + 6;
+  const valueAreaW = w - stripW - 14;
+  if (opts.valueAlign === "left") {
+    ctx.textAlign = "left";
+    ctx.fillText(value, valueAreaX + 2, y + h / 2 + 2);
+  } else if (opts.valueAlign === "right") {
+    ctx.textAlign = "right";
+    ctx.fillText(value, valueAreaX + valueAreaW - 4, y + h / 2 + 2);
+  } else {
+    ctx.textAlign = "center";
+    ctx.fillText(value, valueAreaX + valueAreaW / 2, y + h / 2 + 2);
+  }
 }
