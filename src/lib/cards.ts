@@ -605,9 +605,14 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   const rowH = 46;
   const headerGap = 6;
   const headerH = rowH * 2 + headerGap;
-  const hpW = 130;
+  // NAME / ROLE take roughly half the card width; REP / SW / DS shrink to
+  // hug their numbers; HP polygon takes the remainder on the far right.
+  const nameW = Math.floor(W * 0.5);
+  const repW = 88;
+  const swW = 160;
   const hpDiagonal = 28;
-  const leftGridW = innerW - hpW - 8;
+  const leftGridW = nameW + repW + swW + 2 * headerGap;
+  const hpW = innerW - leftGridW - 8;
 
   // HP polygon — solid red with sharp diagonal cut on its left edge.
   const hpX = PAD + innerW - hpW;
@@ -636,10 +641,8 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
   ctx.textBaseline = "middle";
   ctx.fillText("HP", hpX + hpDiagonal - 4, y + 14);
 
-  // Header grid columns.
-  const nameW = Math.floor(leftGridW * 0.46);
-  const repW = Math.floor(leftGridW * 0.14);
-  const swW = leftGridW - nameW - repW - 2 * headerGap;
+  // Header grid columns: row 1 = NAME | REP | SW; row 2 = ROLE | DEATH SAVE
+  // (DEATH SAVE spans the REP + SW columns).
   const dsW = repW + headerGap + swW;
 
   // Row 1
