@@ -227,13 +227,15 @@
             {/each}
           </select>
           <select
-            class="quality-select quality-{weapon.quality || 'normal'}"
+            class="quality-select quality-bg-{weapon.quality || 'normal'}"
             bind:value={weapon.quality}
             aria-label="Quality for {weapon.name || 'weapon'}"
           >
-            <option value="">Normal</option>
-            <option value="excellent">EQ — Excellent</option>
-            <option value="poor">PQ — Poor</option>
+            <option value="" class="quality-opt-normal">Normal</option>
+            <option value="excellent" class="quality-opt-excellent"
+              >EQ — Excellent</option
+            >
+            <option value="poor" class="quality-opt-poor">PQ — Poor</option>
           </select>
           <span
             class="combat-num"
@@ -540,14 +542,32 @@
     font-size: 0.85em;
     font-weight: 700;
   }
-  .quality-select.quality-excellent {
-    color: #d4a017;
+  /* Closed-select bg follows the selected quality; text colour stays
+     normal (white/black depending on background contrast). */
+  .quality-select.quality-bg-excellent {
+    background-color: #d4a017;
+    color: #000;
   }
-  .quality-select.quality-poor {
-    color: var(--accent-bright);
+  .quality-select.quality-bg-poor {
+    background-color: var(--accent);
+    color: #fff;
   }
-  .quality-select.quality-normal {
-    color: var(--text-faint);
+  .quality-select.quality-bg-normal {
+    background-color: #6b6b75;
+    color: #fff;
+  }
+  /* Options keep their own colour regardless of current selection. */
+  .quality-select option.quality-opt-excellent {
+    background-color: #d4a017;
+    color: #000;
+  }
+  .quality-select option.quality-opt-poor {
+    background-color: var(--accent);
+    color: #fff;
+  }
+  .quality-select option.quality-opt-normal {
+    background-color: #6b6b75;
+    color: #fff;
   }
 
   .combat-num {

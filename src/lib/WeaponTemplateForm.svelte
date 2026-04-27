@@ -74,12 +74,14 @@
     <label>
       Quality
       <select
-        class="quality-select quality-{quality || 'normal'}"
+        class="quality-select quality-bg-{quality || 'normal'}"
         bind:value={quality}
       >
-        <option value="" class="quality-normal">Normal</option>
-        <option value="excellent" class="quality-excellent">EQ — Excellent</option>
-        <option value="poor" class="quality-poor">PQ — Poor</option>
+        <option value="" class="quality-opt-normal">Normal</option>
+        <option value="excellent" class="quality-opt-excellent"
+          >EQ — Excellent</option
+        >
+        <option value="poor" class="quality-opt-poor">PQ — Poor</option>
       </select>
     </label>
     <label>
@@ -123,17 +125,33 @@
     gap: 0.5rem;
   }
 
-  .quality-select {
-    font-weight: 700;
+  /* The closed select takes the bg colour of the currently-selected
+     quality. Text colour is always inherited (default), per spec. */
+  .quality-select.quality-bg-excellent {
+    background-color: #d4a017;
+    color: #000;
   }
-  .quality-select.quality-excellent {
-    color: #d4a017;
+  .quality-select.quality-bg-poor {
+    background-color: var(--accent);
+    color: #fff;
   }
-  .quality-select.quality-poor {
-    color: var(--accent-bright);
+  .quality-select.quality-bg-normal {
+    background-color: #6b6b75;
+    color: #fff;
   }
-  .quality-select.quality-normal {
-    color: var(--text-faint);
+  /* Each option always renders with its own quality colour, regardless
+     of which one is currently selected. */
+  .quality-select option.quality-opt-excellent {
+    background-color: #d4a017;
+    color: #000;
+  }
+  .quality-select option.quality-opt-poor {
+    background-color: var(--accent);
+    color: #fff;
+  }
+  .quality-select option.quality-opt-normal {
+    background-color: #6b6b75;
+    color: #fff;
   }
 
   label {
