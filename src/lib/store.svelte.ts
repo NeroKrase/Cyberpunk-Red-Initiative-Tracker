@@ -299,6 +299,21 @@ export function updateArmorSp(
   save();
 }
 
+export function updateWeaponAmmo(
+  sessionId: string,
+  encounterId: string,
+  combatantId: string,
+  weaponId: string,
+  ammo: number,
+) {
+  const combatant = getCombatant(sessionId, encounterId, combatantId);
+  if (!combatant || combatant.kind !== "enemy") return;
+  const weapon = combatant.weapons.find((w) => w.id === weaponId);
+  if (!weapon) return;
+  weapon.ammo = ammo;
+  save();
+}
+
 export function applyDamage(
   sessionId: string,
   encounterId: string,

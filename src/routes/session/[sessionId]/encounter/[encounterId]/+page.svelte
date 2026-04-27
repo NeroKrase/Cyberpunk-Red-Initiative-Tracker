@@ -10,6 +10,8 @@
     store,
   } from "$lib/store.svelte";
   import { woundState, maxHpFromStats, type ArmorLocation } from "$lib/types";
+  import CombatantDetails from "$lib/CombatantDetails.svelte";
+  import { SvelteSet } from "svelte/reactivity";
 
   const session = $derived(getSession(page.params.sessionId!));
   const encounter = $derived(
@@ -27,6 +29,13 @@
   let initiative = $state<number | "">("");
   let templateId = $state<string>("");
   let nameOverride = $state("");
+
+  let expanded = $state<Set<string>>(new SvelteSet());
+
+  function toggleExpanded(id: string) {
+    if (expanded.has(id)) expanded.delete(id);
+    else expanded.add(id);
+  }
 
   function submit(event: Event) {
     event.preventDefault();
@@ -141,24 +150,49 @@
   {:else}
     <ul>
       {#each ordered as combatant (combatant.id)}
+        {@const isOpen = expanded.has(combatant.id)}
         <li>
-          <div class="row">
-            <input
-              type="number"
-              value={combatant.initiative}
-              onchange={(e) =>
-                onFieldChange(combatant.id, "initiative", e.currentTarget.value)}
-              class="num"
-              aria-label="Initiative for {combatant.name}"
-            />
-            <span class="kind-tag {combatant.kind}">
-              {combatant.kind === "pc" ? "PC" : "ENEMY"}
-            </span>
-            <strong class="name">{combatant.name}</strong>
+          {#if combatant.kind === "enemy"}
+            {@const maxHp = maxHpFromStats(combatant.stats)}
+            {@const wound = woundState(combatant.hp, maxHp)}
+            <div class="row">
+              <button
+                type="button"
+                class="expand"
+                class:open={isOpen}
+                aria-expanded={isOpen}
+                aria-label={isOpen ? `Collapse ${combatant.name}` : `Expand ${combatant.name}`}
+                onclick={() => toggleExpanded(combatant.id)}
+              >
+                ›
+              </button>
+              <input
+                type="number"
+                value={combatant.initiative}
+                onchange={(e) =>
+                  onFieldChange(combatant.id, "initiative", e.currentTarget.value)}
+                class="num"
+                aria-label="Initiative for {combatant.name}"
+              />
+              <span class="kind-tag enemy">ENEMY</span>
+              <strong class="name">{combatant.name}</strong>
 
-            {#if combatant.kind === "enemy"}
-              {@const maxHp = maxHpFromStats(combatant.stats)}
-              {@const wound = woundState(combatant.hp, maxHp)}
+              <span class="wound-slot" aria-hidden={wound === "none"}>
+                {#if wound === "mortal"}
+                  <span
+                    class="wound-badge mortal"
+                    aria-label="Mortally Wounded — HP at 0. −4 to all actions, −6 to MOVE. Roll a Death Save each turn (d10 ≤ BODY) until stabilized."
+                    data-tooltip="Mortally Wounded — HP at 0. −4 to all actions, −6 to MOVE. Roll a Death Save each turn (d10 ≤ BODY) until stabilized."
+                  >MW</span>
+                {:else if wound === "serious"}
+                  <span
+                    class="wound-badge serious"
+                    aria-label="Seriously Wounded — HP at or below half max. −2 penalty to all rolls until healed above half via First Aid or Paramedic."
+                    data-tooltip="Seriously Wounded — HP at or below half max. −2 penalty to all rolls until healed above half via First Aid or Paramedic."
+                  >SW</span>
+                {/if}
+              </span>
+
               <span class="stat">
                 HP
                 <input
@@ -195,12 +229,6 @@
                 />
               </span>
 
-              {#if wound === "mortal"}
-                <span class="badge mortal">Mortally Wounded</span>
-              {:else if wound === "serious"}
-                <span class="badge serious">Seriously Wounded</span>
-              {/if}
-
               <form
                 class="damage-form"
                 onsubmit={(e) => submitDamage(e, combatant.id)}
@@ -217,8 +245,29 @@
                 />
                 <button type="submit">Hit</button>
               </form>
+            </div>
+            {#if isOpen}
+              <CombatantDetails
+                {combatant}
+                sessionId={session!.id}
+                encounterId={encounter.id}
+              />
             {/if}
-          </div>
+          {:else}
+            <div class="row">
+              <span class="expand-spacer" aria-hidden="true"></span>
+              <input
+                type="number"
+                value={combatant.initiative}
+                onchange={(e) =>
+                  onFieldChange(combatant.id, "initiative", e.currentTarget.value)}
+                class="num"
+                aria-label="Initiative for {combatant.name}"
+              />
+              <span class="kind-tag pc">PC</span>
+              <strong class="name">{combatant.name}</strong>
+            </div>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -229,8 +278,39 @@
   .row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.45rem;
     flex-wrap: wrap;
+  }
+
+  .expand {
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 120ms, border-color 120ms, color 120ms;
+  }
+
+  .expand:hover {
+    border-color: var(--accent);
+    color: var(--accent-bright);
+  }
+
+  .expand.open {
+    transform: rotate(90deg);
+    border-color: var(--accent);
+  }
+
+  .expand-spacer {
+    width: 1.6rem;
+    height: 1.6rem;
   }
 
   .name {
@@ -240,13 +320,19 @@
   .stat {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    color: #bbb;
-    font-size: 0.9em;
+    gap: 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
   }
 
   :global(.num) {
-    width: 4rem;
+    width: 3.4rem;
+  }
+
+  .row :global(.num) {
+    padding-left: 0.4rem;
+    padding-right: 0.3rem;
   }
 
   .readonly {
@@ -273,29 +359,86 @@
     color: #ffb5c0;
   }
 
-  .badge {
-    padding: 0.1rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.8em;
+  .wound-slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.4rem;
+  }
+
+  .wound-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.45rem;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    cursor: help;
+    line-height: 1;
   }
 
-  .badge.serious {
-    background: #7a5200;
-    color: #fff;
+  .wound-badge.serious {
+    color: var(--hazard);
+    border: 1px solid var(--hazard);
+    background: transparent;
   }
 
-  .badge.mortal {
-    background: #a33;
+  .wound-badge.mortal {
     color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  .wound-badge::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 18rem;
+    padding: 0.55rem 0.7rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-left: 2px solid var(--accent);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    text-align: left;
+    line-height: 1.4;
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms;
+    z-index: 10;
+  }
+
+  .wound-badge:hover::after {
+    opacity: 1;
   }
 
   .damage-form {
     display: inline-flex;
-    gap: 0.25rem;
+    gap: 0.2rem;
     margin: 0;
     margin-left: auto;
+  }
+
+  .damage-form select,
+  .damage-form input,
+  .damage-form button {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .damage-form select {
+    padding-right: 1.6rem;
   }
 
   .kind-picker {
