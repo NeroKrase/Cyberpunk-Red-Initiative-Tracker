@@ -28,5 +28,13 @@ export default defineConfig(async () => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+    // Pre-transform every route + lib component before the Tauri webview connects,
+    // so scoped CSS isn't compiled mid-request on cold start.
+    warmup: {
+      clientFiles: [
+        "./src/routes/**/*.svelte",
+        "./src/lib/**/*.svelte",
+      ],
+    },
   },
 }));
