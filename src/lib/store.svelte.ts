@@ -89,6 +89,7 @@ function migrateStatBlock(c: Record<string, unknown>) {
       w.ammo ??= 0;
       w.description ??= "";
       w.weaponType ??= "";
+      w.quality ??= "";
     }
   }
   if (Array.isArray(c.skills)) {
@@ -111,6 +112,7 @@ function migrateWeaponTemplate(t: Record<string, unknown>) {
   t.ammo ??= 0;
   t.description ??= "";
   t.weaponType ??= "";
+  t.quality ??= "";
 }
 
 function save() {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { EnemyStatBlock, SkillCategory } from "./types";
+  import type { EnemyStatBlock, SkillCategory, Weapon } from "./types";
   import {
     MAX_REPUTATION,
     STAT_KEYS,
@@ -12,6 +12,7 @@
     emptyWeapon,
     getSkillStat,
     maxHpFromStats,
+    weaponCombatNumber,
   } from "./types";
   import { store } from "./store.svelte";
 
@@ -77,12 +78,31 @@
       id: crypto.randomUUID(),
       name: template.name,
       weaponType: template.weaponType,
+      quality: template.quality,
       rof: template.rof,
       ammo: template.ammo,
       damage: template.damage,
       description: template.description,
       templateId: template.id,
     });
+  }
+
+  // Combat number = associated-skill total + EQ bonus. Read-only, derived
+  // from the NPC's stats/skills so it stays in sync as the user edits.
+  function combatNumber(weapon: Weapon): string {
+    const block: EnemyStatBlock = {
+      name,
+      role,
+      reputation,
+      stats,
+      armor,
+      weapons,
+      skills,
+      gear,
+      cyberware,
+    };
+    const v = weaponCombatNumber(block, weapon.weaponType, weapon.quality);
+    return v == null ? "—" : String(v);
   }
 
   function submit(event: Event) {
@@ -188,6 +208,8 @@
       <div class="weapon-grid">
         <span class="weapon-head">Name</span>
         <span class="weapon-head">Type</span>
+        <span class="weapon-head">Qual</span>
+        <span class="weapon-head" title="Combat number">C#</span>
         <span class="weapon-head">ROF</span>
         <span class="weapon-head">Ammo</span>
         <span class="weapon-head">Dmg (d6)</span>
@@ -204,6 +226,24 @@
               <option value={wt}>{wt}</option>
             {/each}
           </select>
+          <select
+            class="quality-select quality-{weapon.quality || 'normal'}"
+            bind:value={weapon.quality}
+            aria-label="Quality for {weapon.name || 'weapon'}"
+          >
+            <option value="">Normal</option>
+            <option value="excellent">EQ — Excellent</option>
+            <option value="poor">PQ — Poor</option>
+          </select>
+          <span
+            class="combat-num"
+            aria-label="Combat number for {weapon.name || 'weapon'}"
+            title="Associated skill total{weapon.quality === 'excellent'
+              ? ' (+1 EQ)'
+              : ''}"
+          >
+            {combatNumber(weapon)}
+          </span>
           <input
             type="number"
             min="1"
@@ -486,13 +526,37 @@
 
   .weapon-grid {
     display: grid;
-    grid-template-columns: 1fr minmax(8rem, 1fr) 4.5rem 4.5rem 4.5rem auto;
+    grid-template-columns:
+      1fr minmax(7.5rem, 1fr) minmax(7rem, 1fr) 2.5rem 4rem 4rem 4rem auto;
     gap: 0.4rem 0.6rem;
     align-items: center;
   }
 
   .type-select {
     font-size: 0.85em;
+  }
+
+  .quality-select {
+    font-size: 0.85em;
+    font-weight: 700;
+  }
+  .quality-select.quality-excellent {
+    color: #d4a017;
+  }
+  .quality-select.quality-poor {
+    color: var(--accent-bright);
+  }
+  .quality-select.quality-normal {
+    color: var(--text-faint);
+  }
+
+  .combat-num {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--faction, var(--ncpd));
+    min-width: 2.2rem;
   }
 
   .weapon-desc {

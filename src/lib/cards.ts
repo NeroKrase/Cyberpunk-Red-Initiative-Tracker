@@ -1,10 +1,19 @@
-import type { EnemyTemplate } from "./types";
+import type { EnemyTemplate, Weapon } from "./types";
 import {
+  QUALITY_CARD_PREFIX,
   STAT_KEYS,
   maxHpFromStats,
   skillTotal,
   weaponCombatNumber,
 } from "./types";
+
+// Compose the weapon name as it appears on cards: optional quality prefix
+// (e.g. "EQ ", "PR ") followed by the title-cased weapon name.
+function weaponDisplayName(w: Weapon): string {
+  const prefix = QUALITY_CARD_PREFIX[w.quality];
+  const name = titleCase(w.name || "—");
+  return prefix ? `${prefix} ${name}` : name;
+}
 
 // Brutalist tech-noir palette.
 const RED = "#dc2626"; // border-red-600
@@ -501,9 +510,9 @@ export function drawSmallCard(template: EnemyTemplate): HTMLCanvasElement {
     y += 22;
   }
   for (const w of template.weapons) {
-    const cnum = weaponCombatNumber(template, w.weaponType);
+    const cnum = weaponCombatNumber(template, w.weaponType, w.quality);
     const cTag = cnum != null ? `  #${cnum}` : "";
-    const left = `${titleCase(w.name || "—")} (ROF${w.rof})${cTag}`;
+    const left = `${weaponDisplayName(w)} (ROF${w.rof})${cTag}`;
     thickRedBox(ctx, PAD, y, attackNameW, rowH, { tr: BOX_CHAMFER });
     ctx.fillStyle = BLACK;
     ctx.font = `700 16px ${FONT_HEADER}`;
@@ -765,9 +774,9 @@ export function drawBigCard(template: EnemyTemplate): HTMLCanvasElement {
     lY += 22;
   }
   for (const w of template.weapons) {
-    const cnum = weaponCombatNumber(template, w.weaponType);
+    const cnum = weaponCombatNumber(template, w.weaponType, w.quality);
     const cTag = cnum != null ? ` (C#: ${cnum})` : "";
-    const wLabel = `${titleCase(w.name || "—")}${cTag}`;
+    const wLabel = `${weaponDisplayName(w)}${cTag}`;
     thickRedBox(ctx, PAD, lY, wNameW, wRowH, { tr: BOX_CHAMFER });
     ctx.fillStyle = BLACK;
     ctx.font = `700 15px ${FONT_HEADER}`;
