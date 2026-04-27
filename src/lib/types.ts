@@ -178,10 +178,35 @@ export const WEAPON_TYPE_SKILL: Record<WeaponType, string> = {
   "Rocket Launcher": "Heavy Weapons",
 };
 
+// Weapon quality. "" = normal, "excellent" gives +1 to combat number.
+export type WeaponQuality = "" | "excellent" | "poor";
+
+// Card-side prefix label used for the quality. Per spec the displayed
+// abbreviations on cards are "EQ" for excellent, "PR" for poor, none for
+// normal.
+export const QUALITY_CARD_PREFIX: Record<WeaponQuality, string> = {
+  "": "",
+  excellent: "EQ",
+  poor: "PR",
+};
+
+// Form-side dropdown option labels (shown next to the colour swatch).
+export const QUALITY_FORM_LABEL: Record<WeaponQuality, string> = {
+  "": "Normal",
+  excellent: "EQ — Excellent",
+  poor: "PQ — Poor",
+};
+
+// Excellent-quality weapons add +1 to their combat number / skill total.
+export function qualityCombatBonus(quality: WeaponQuality): number {
+  return quality === "excellent" ? 1 : 0;
+}
+
 export type Weapon = {
   id: string;
   name: string;
   weaponType: WeaponType | "";
+  quality: WeaponQuality;
   rof: number;
   ammo: number;
   damage: number;
@@ -193,6 +218,7 @@ export type WeaponTemplate = {
   id: string;
   name: string;
   weaponType: WeaponType | "";
+  quality: WeaponQuality;
   rof: number;
   ammo: number;
   damage: number;
@@ -204,6 +230,7 @@ export function emptyWeapon(): Weapon {
     id: crypto.randomUUID(),
     name: "",
     weaponType: "",
+    quality: "",
     rof: 1,
     ammo: 0,
     damage: 0,
@@ -250,18 +277,25 @@ export function skillTotal(stats: Stats, skill: Skill): number {
   return statValue + skill.level + skill.mod;
 }
 
+// Combat number for a weapon — the associated skill total for the NPC.
+// Returns null when the weapon has no type (untyped).
+// If quality is "excellent", adds the +1 EQ bonus.
 export function weaponCombatNumber(
   block: EnemyStatBlock,
   weaponType: WeaponType | "",
+  quality: WeaponQuality = "",
 ): number | null {
   if (!weaponType) return null;
   const skillName = WEAPON_TYPE_SKILL[weaponType];
   const skill = block.skills.find((s) => s.name === skillName);
-  if (!skill) {
-    const stat = getSkillStat(skillName);
-    return stat ? block.stats[stat] : null;
-  }
-  return skillTotal(block.stats, skill);
+  const base = skill
+    ? skillTotal(block.stats, skill)
+    : (() => {
+        const stat = getSkillStat(skillName);
+        return stat ? block.stats[stat] : null;
+      })();
+  if (base == null) return null;
+  return base + qualityCombatBonus(quality);
 }
 
 export type EnemyTemplate = { id: string } & EnemyStatBlock;
