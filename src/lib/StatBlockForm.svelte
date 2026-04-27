@@ -2,9 +2,12 @@
   import { untrack } from "svelte";
   import type { EnemyStatBlock, SkillCategory } from "./types";
   import {
+    MAX_REPUTATION,
     STAT_KEYS,
     SKILL_CATALOG,
     SKILL_CATEGORIES,
+    WEAPON_TYPES,
+    clampReputation,
     emptyStatBlock,
     emptyWeapon,
     getSkillStat,
@@ -28,6 +31,7 @@
   const seed = untrack(() => clone(initial ?? emptyStatBlock()));
   let name = $state(seed.name);
   let role = $state(seed.role);
+  let reputation = $state(seed.reputation);
   let stats = $state(seed.stats);
   let armor = $state(seed.armor);
   let weapons = $state(seed.weapons);
@@ -72,6 +76,7 @@
     weapons.push({
       id: crypto.randomUUID(),
       name: template.name,
+      weaponType: template.weaponType,
       rof: template.rof,
       ammo: template.ammo,
       damage: template.damage,
@@ -86,6 +91,7 @@
     onSave({
       name: name.trim(),
       role: role.trim(),
+      reputation: clampReputation(reputation),
       stats,
       armor,
       weapons,
@@ -107,6 +113,16 @@
       <label>
         Role
         <input bind:value={role} placeholder="e.g. Solo, None" />
+      </label>
+      <label>
+        Reputation
+        <input
+          type="number"
+          min="0"
+          max={MAX_REPUTATION}
+          step="1"
+          bind:value={reputation}
+        />
       </label>
       <div class="readonly-field" title="HP = 10 + 5 × ⌈(BODY + WILL) / 2⌉">
         <span class="label-text">Max HP</span>
@@ -171,12 +187,23 @@
     {#if weapons.length}
       <div class="weapon-grid">
         <span class="weapon-head">Name</span>
+        <span class="weapon-head">Type</span>
         <span class="weapon-head">ROF</span>
         <span class="weapon-head">Ammo</span>
         <span class="weapon-head">Dmg (d6)</span>
         <span></span>
         {#each weapons as weapon, i (weapon.id)}
           <input bind:value={weapon.name} placeholder="Name" />
+          <select
+            class="type-select"
+            bind:value={weapon.weaponType}
+            aria-label="Type for {weapon.name || 'weapon'}"
+          >
+            <option value="">— Untyped —</option>
+            {#each WEAPON_TYPES as wt (wt)}
+              <option value={wt}>{wt}</option>
+            {/each}
+          </select>
           <input
             type="number"
             min="1"
@@ -459,9 +486,13 @@
 
   .weapon-grid {
     display: grid;
-    grid-template-columns: 1fr 4.5rem 4.5rem 4.5rem auto;
+    grid-template-columns: 1fr minmax(8rem, 1fr) 4.5rem 4.5rem 4.5rem auto;
     gap: 0.4rem 0.6rem;
     align-items: center;
+  }
+
+  .type-select {
+    font-size: 0.85em;
   }
 
   .weapon-desc {

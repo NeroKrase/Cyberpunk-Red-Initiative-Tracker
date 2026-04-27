@@ -4,6 +4,8 @@
     deleteTemplate,
     deleteWeaponTemplate,
   } from "$lib/store.svelte";
+  import { downloadNpcCard, type CardSize } from "$lib/cards";
+  import type { EnemyTemplate } from "$lib/types";
   import { maxHpFromStats } from "$lib/types";
 
   let tab = $state<"npcs" | "weapons">("npcs");
@@ -14,6 +16,15 @@
 
   function removeWeapon(id: string, name: string) {
     if (confirm(`Delete weapon "${name}"?`)) deleteWeaponTemplate(id);
+  }
+
+  async function generateCard(template: EnemyTemplate, size: CardSize) {
+    try {
+      await downloadNpcCard(template, size);
+    } catch (err) {
+      console.error("card generation failed", err);
+      alert("Failed to generate card. See console for details.");
+    }
   }
 </script>
 
@@ -62,6 +73,26 @@
               >HP {maxHpFromStats(template.stats)} · SP {template.armor.head
                 .sp}/{template.armor.body.sp}</span
             >
+            <button
+              type="button"
+              class="card-btn"
+              onclick={() => generateCard(template, "small")}
+              aria-label="Download small card for {template.name}"
+              title="Download small NPC card"
+            >
+              <span class="card-tag">CARD</span>
+              <span class="card-size">S</span>
+            </button>
+            <button
+              type="button"
+              class="card-btn"
+              onclick={() => generateCard(template, "big")}
+              aria-label="Download big card for {template.name}"
+              title="Download big NPC card"
+            >
+              <span class="card-tag">CARD</span>
+              <span class="card-size">L</span>
+            </button>
             <button
               type="button"
               class="del"
@@ -249,6 +280,34 @@
   .del:hover {
     color: var(--accent-bright);
     border-color: var(--accent);
+  }
+
+  .card-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .card-btn:hover {
+    color: var(--faction);
+    border-color: var(--faction);
+  }
+  .card-tag {
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+  .card-size {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--faction);
   }
 
   .empty {

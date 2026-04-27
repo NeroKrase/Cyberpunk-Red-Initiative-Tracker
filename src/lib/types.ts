@@ -138,9 +138,50 @@ export function getSkillStat(name: string): SkillStat | undefined {
   return SKILL_STAT_BY_NAME.get(name);
 }
 
+export const WEAPON_TYPES = [
+  "L Melee",
+  "M Melee",
+  "H Melee",
+  "VH Melee",
+  "M Pistol",
+  "H Pistol",
+  "VH Pistol",
+  "SMG",
+  "H SMG",
+  "Shotgun",
+  "Assault Rifle",
+  "Sniper Rifle",
+  "Bow",
+  "Crossbow",
+  "Grenade Launcher",
+  "Rocket Launcher",
+] as const;
+
+export type WeaponType = (typeof WEAPON_TYPES)[number];
+
+export const WEAPON_TYPE_SKILL: Record<WeaponType, string> = {
+  "L Melee": "Melee Weapon",
+  "M Melee": "Melee Weapon",
+  "H Melee": "Melee Weapon",
+  "VH Melee": "Melee Weapon",
+  "M Pistol": "Handgun",
+  "H Pistol": "Handgun",
+  "VH Pistol": "Handgun",
+  SMG: "Handgun",
+  "H SMG": "Handgun",
+  Shotgun: "Shoulder Arms",
+  "Assault Rifle": "Shoulder Arms",
+  "Sniper Rifle": "Shoulder Arms",
+  Bow: "Archery",
+  Crossbow: "Archery",
+  "Grenade Launcher": "Heavy Weapons",
+  "Rocket Launcher": "Heavy Weapons",
+};
+
 export type Weapon = {
   id: string;
   name: string;
+  weaponType: WeaponType | "";
   rof: number;
   ammo: number;
   damage: number;
@@ -151,6 +192,7 @@ export type Weapon = {
 export type WeaponTemplate = {
   id: string;
   name: string;
+  weaponType: WeaponType | "";
   rof: number;
   ammo: number;
   damage: number;
@@ -161,6 +203,7 @@ export function emptyWeapon(): Weapon {
   return {
     id: crypto.randomUUID(),
     name: "",
+    weaponType: "",
     rof: 1,
     ammo: 0,
     damage: 0,
@@ -185,6 +228,7 @@ export type ArmorLocation = "head" | "body";
 export type EnemyStatBlock = {
   name: string;
   role: string;
+  reputation: number;
   stats: Stats;
   weapons: Weapon[];
   armor: { head: ArmorPiece; body: ArmorPiece };
@@ -192,6 +236,33 @@ export type EnemyStatBlock = {
   gear: string[];
   cyberware: string[];
 };
+
+export const MAX_REPUTATION = 10;
+
+export function clampReputation(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(MAX_REPUTATION, Math.floor(value)));
+}
+
+export function skillTotal(stats: Stats, skill: Skill): number {
+  const stat = getSkillStat(skill.name);
+  const statValue = stat ? stats[stat] : 0;
+  return statValue + skill.level + skill.mod;
+}
+
+export function weaponCombatNumber(
+  block: EnemyStatBlock,
+  weaponType: WeaponType | "",
+): number | null {
+  if (!weaponType) return null;
+  const skillName = WEAPON_TYPE_SKILL[weaponType];
+  const skill = block.skills.find((s) => s.name === skillName);
+  if (!skill) {
+    const stat = getSkillStat(skillName);
+    return stat ? block.stats[stat] : null;
+  }
+  return skillTotal(block.stats, skill);
+}
 
 export type EnemyTemplate = { id: string } & EnemyStatBlock;
 
@@ -266,6 +337,7 @@ export function emptyStatBlock(): EnemyStatBlock {
   return {
     name: "",
     role: "",
+    reputation: 0,
     stats: emptyStats(),
     weapons: [],
     armor: { head: { name: "", sp: 0 }, body: { name: "", sp: 0 } },

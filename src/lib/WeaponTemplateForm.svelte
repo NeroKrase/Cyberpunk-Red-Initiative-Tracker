@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { WeaponTemplate } from "./types";
+  import type { WeaponTemplate, WeaponType } from "./types";
+  import { WEAPON_TYPES } from "./types";
 
   type WeaponTemplateInput = Omit<WeaponTemplate, "id">;
 
@@ -17,6 +18,7 @@
     () =>
       initial ?? {
         name: "",
+        weaponType: "" as WeaponType | "",
         rof: 1,
         ammo: 0,
         damage: 0,
@@ -25,6 +27,7 @@
   );
 
   let name = $state(seed.name);
+  let weaponType = $state<WeaponType | "">(seed.weaponType);
   let rof = $state(seed.rof);
   let ammo = $state(seed.ammo);
   let damage = $state(seed.damage);
@@ -41,6 +44,7 @@
     if (!name.trim()) return;
     onSave({
       name: name.trim(),
+      weaponType,
       rof: natural(rof, 1),
       ammo: natural(ammo, 0),
       damage: natural(damage, 0),
@@ -54,6 +58,15 @@
     <label class="grow">
       Name
       <input bind:value={name} required />
+    </label>
+    <label>
+      Type
+      <select bind:value={weaponType}>
+        <option value="">— Untyped —</option>
+        {#each WEAPON_TYPES as wt (wt)}
+          <option value={wt}>{wt}</option>
+        {/each}
+      </select>
     </label>
     <label>
       ROF
@@ -92,7 +105,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: 2fr repeat(3, minmax(80px, 1fr));
+    grid-template-columns: 2fr 2fr repeat(3, minmax(80px, 1fr));
     gap: 0.5rem;
   }
 
@@ -109,6 +122,7 @@
   }
 
   .weapon-form input:focus,
+  .weapon-form select:focus,
   .weapon-form textarea:focus {
     border-color: var(--faction, var(--ncpd));
   }
