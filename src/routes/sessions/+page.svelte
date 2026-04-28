@@ -4,6 +4,7 @@
     createSession,
     deleteSession,
     renameSession,
+    duplicateSession,
   } from "$lib/store.svelte";
   import { showConfirm } from "$lib/confirm.svelte";
   import { showPrompt } from "$lib/prompt.svelte";
@@ -79,6 +80,27 @@
             >
               <path d="M 65 25 L 75 35 L 30 80 L 15 85 L 20 70 Z" />
               <path d="M 55 35 L 65 45" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-btn"
+            onclick={() => duplicateSession(session.id)}
+            aria-label="Duplicate {session.name}"
+          >
+            <svg
+              viewBox="0 0 100 100"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="20" y="30" width="50" height="55" />
+              <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
             </svg>
           </button>
           <button
