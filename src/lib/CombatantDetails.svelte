@@ -24,13 +24,14 @@
   const deathSave = $derived(combatant.stats.body);
 
   const trainedSkills = $derived(
-    combatant.skills.filter((s) => s.level > 0 || s.mod > 0),
+    combatant.skills.filter((s) => s.level + s.mod !== 0),
   );
 
   function onAmmoChange(weaponId: string, value: string) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return;
-    updateWeaponAmmo(sessionId, encounterId, combatant.id, weaponId, parsed);
+    const clamped = Math.max(0, parsed);
+    updateWeaponAmmo(sessionId, encounterId, combatant.id, weaponId, clamped);
   }
 </script>
 
@@ -95,6 +96,7 @@
               <input
                 type="number"
                 class="cell-input num mono"
+                min="0"
                 value={w.ammo}
                 onchange={(e) => onAmmoChange(w.id, e.currentTarget.value)}
                 aria-label="Ammo for {w.name || 'weapon'}"
@@ -367,6 +369,9 @@
 
   .skills {
     margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
     line-height: 1.7;
     color: var(--text);
   }
