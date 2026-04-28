@@ -116,9 +116,11 @@
               <span class="prefix">›</span>
               <span class="name">{weapon.name || "(unnamed)"}</span>
             </a>
-            <span class="meta"
-              >ROF {weapon.rof} · {weapon.damage}D6 · AMMO {weapon.ammo}</span
-            >
+            <span class="meta">
+              {weapon.kind === "melee" ? "MELEE" : "RANGE"} · ROF {weapon.rof}
+              · {weapon.damage}D6{#if weapon.kind === "range"}
+                · MAG {weapon.magazine}{/if}
+            </span>
             <button
               type="button"
               class="del"

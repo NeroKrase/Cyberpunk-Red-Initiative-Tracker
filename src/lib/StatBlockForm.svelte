@@ -1,16 +1,23 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { EnemyStatBlock, SkillCategory, Weapon } from "./types";
+  import type {
+    EnemyStatBlock,
+    SkillCategory,
+    Weapon,
+    WeaponKind,
+  } from "./types";
   import {
     MAX_REPUTATION,
+    MELEE_WEAPON_TYPES,
+    RANGE_WEAPON_TYPES,
     STAT_KEYS,
     SKILL_CATALOG,
     SKILL_CATEGORIES,
-    WEAPON_TYPES,
     clampReputation,
     emptyStatBlock,
     emptyWeapon,
     getSkillStat,
+    isRange,
     maxHpFromStats,
     weaponCombatNumber,
   } from "./types";
@@ -74,17 +81,67 @@
     if (!id) return;
     const template = store.weaponTemplates.find((t) => t.id === id);
     if (!template) return;
-    weapons.push({
-      id: crypto.randomUUID(),
+    const id_ = crypto.randomUUID();
+    const common = {
+      id: id_,
       name: template.name,
-      weaponType: template.weaponType,
       quality: template.quality,
       rof: template.rof,
-      ammo: template.ammo,
       damage: template.damage,
       description: template.description,
       templateId: template.id,
-    });
+    };
+    weapons.push(
+      template.kind === "melee"
+        ? {
+            ...common,
+            kind: "melee",
+            weaponType: template.weaponType,
+          }
+        : {
+            ...common,
+            kind: "range",
+            weaponType: template.weaponType,
+            magazine: template.magazine,
+            // NPC starts out fully loaded — ammo defaults to magazine size.
+            ammo: 0,
+          },
+    );
+  }
+
+  // Switch a weapon row between melee and range while preserving every
+  // shared field. Resets weaponType because the allowed-types lists are
+  // disjoint between the two kinds.
+  function changeKind(i: number, newKind: WeaponKind) {
+    const w = weapons[i];
+    if (w.kind === newKind) return;
+    if (newKind === "melee") {
+      weapons[i] = {
+        id: w.id,
+        kind: "melee",
+        name: w.name,
+        weaponType: "",
+        quality: w.quality,
+        rof: w.rof,
+        damage: w.damage,
+        description: w.description,
+        templateId: w.templateId,
+      };
+    } else {
+      weapons[i] = {
+        id: w.id,
+        kind: "range",
+        name: w.name,
+        weaponType: "",
+        quality: w.quality,
+        rof: w.rof,
+        magazine: 0,
+        ammo: 0,
+        damage: w.damage,
+        description: w.description,
+        templateId: w.templateId,
+      };
+    }
   }
 
   // Combat number = associated-skill total + EQ bonus. Read-only, derived
@@ -207,25 +264,52 @@
     {#if weapons.length}
       <div class="weapon-grid">
         <span class="weapon-head">Name</span>
+        <span class="weapon-head">Kind</span>
         <span class="weapon-head">Type</span>
         <span class="weapon-head">Qual</span>
         <span class="weapon-head" title="Combat number">C#</span>
         <span class="weapon-head">ROF</span>
-        <span class="weapon-head">Ammo</span>
+        <span class="weapon-head" title="Magazine capacity">Mag</span>
+        <span class="weapon-head" title="Ammo carried (range only)"
+          >Ammo</span
+        >
         <span class="weapon-head">Dmg (d6)</span>
         <span></span>
         {#each weapons as weapon, i (weapon.id)}
           <input bind:value={weapon.name} placeholder="Name" />
           <select
-            class="type-select"
-            bind:value={weapon.weaponType}
-            aria-label="Type for {weapon.name || 'weapon'}"
+            class="kind-select"
+            value={weapon.kind}
+            onchange={(e) =>
+              changeKind(i, e.currentTarget.value as WeaponKind)}
+            aria-label="Kind for {weapon.name || 'weapon'}"
           >
-            <option value="">— Untyped —</option>
-            {#each WEAPON_TYPES as wt (wt)}
-              <option value={wt}>{wt}</option>
-            {/each}
+            <option value="melee">Melee</option>
+            <option value="range">Range</option>
           </select>
+          {#if weapon.kind === "melee"}
+            <select
+              class="type-select"
+              bind:value={weapon.weaponType}
+              aria-label="Type for {weapon.name || 'weapon'}"
+            >
+              <option value="">— Untyped —</option>
+              {#each MELEE_WEAPON_TYPES as wt (wt)}
+                <option value={wt}>{wt}</option>
+              {/each}
+            </select>
+          {:else}
+            <select
+              class="type-select"
+              bind:value={weapon.weaponType}
+              aria-label="Type for {weapon.name || 'weapon'}"
+            >
+              <option value="">— Untyped —</option>
+              {#each RANGE_WEAPON_TYPES as wt (wt)}
+                <option value={wt}>{wt}</option>
+              {/each}
+            </select>
+          {/if}
           <select
             class="quality-select quality-bg-{weapon.quality || 'normal'}"
             bind:value={weapon.quality}
@@ -254,14 +338,27 @@
             class="num"
             aria-label="ROF for {weapon.name || 'weapon'}"
           />
-          <input
-            type="number"
-            min="0"
-            step="1"
-            bind:value={weapon.ammo}
-            class="num"
-            aria-label="Ammo for {weapon.name || 'weapon'}"
-          />
+          {#if weapon.kind === "range"}
+            <input
+              type="number"
+              min="0"
+              step="1"
+              bind:value={weapon.magazine}
+              class="num"
+              aria-label="Magazine capacity for {weapon.name || 'weapon'}"
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              bind:value={weapon.ammo}
+              class="num"
+              aria-label="Ammo carried for {weapon.name || 'weapon'}"
+            />
+          {:else}
+            <span class="empty-cell" aria-label="No magazine for melee">—</span>
+            <span class="empty-cell" aria-label="No ammo for melee">—</span>
+          {/if}
           <input
             type="number"
             min="0"
@@ -529,13 +626,29 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      1fr minmax(7.5rem, 1fr) minmax(7rem, 1fr) 2.5rem 4rem 4rem 4rem auto;
+      minmax(8rem, 1fr) /* Name */
+      5rem /* Kind */
+      minmax(6.5rem, 1fr) /* Type */
+      minmax(6.5rem, 1fr) /* Qual */
+      2.5rem /* C# */
+      3.5rem /* ROF */
+      3.5rem /* Mag */
+      3.5rem /* Ammo */
+      3.5rem /* Dmg */
+      auto; /* × */
     gap: 0.4rem 0.6rem;
     align-items: center;
   }
 
+  .kind-select,
   .type-select {
     font-size: 0.85em;
+  }
+
+  .empty-cell {
+    text-align: center;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
   }
 
   .quality-select {
