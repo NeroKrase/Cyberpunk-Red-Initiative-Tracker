@@ -1,7 +1,13 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { getSession, createEncounter, deleteEncounter } from "$lib/store.svelte";
+  import {
+    getSession,
+    createEncounter,
+    deleteEncounter,
+    renameEncounter,
+  } from "$lib/store.svelte";
   import { showConfirm } from "$lib/confirm.svelte";
+  import { showPrompt } from "$lib/prompt.svelte";
 
   const session = $derived(getSession(page.params.sessionId!));
 
@@ -22,6 +28,16 @@
       message: `Delete encounter "${encounterName}"?`,
     });
     if (ok) deleteEncounter(session.id, encounterId);
+  }
+
+  async function editEncounter(encounterId: string, encounterName: string) {
+    if (!session) return;
+    const next = await showPrompt({
+      title: "Rename encounter",
+      label: "Name",
+      initialValue: encounterName,
+    });
+    if (next && next !== encounterName) renameEncounter(session.id, encounterId, next);
   }
 </script>
 
@@ -50,7 +66,28 @@
           <small>({encounter.combatants.length} combatants)</small>
           <button
             type="button"
-            class="del"
+            class="icon-btn edit-btn"
+            onclick={() => editEncounter(encounter.id, encounter.name)}
+            aria-label="Rename {encounter.name}"
+          >
+            <svg
+              viewBox="0 0 100 100"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M 65 25 L 75 35 L 30 80 L 15 85 L 20 70 Z" />
+              <path d="M 55 35 L 65 45" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-btn"
             onclick={() => removeEncounter(encounter.id, encounter.name)}
             aria-label="Delete {encounter.name}">×</button
           >
@@ -67,16 +104,21 @@
     gap: 0.5rem;
   }
 
-  .del {
-    margin-left: auto;
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid transparent;
     color: var(--text-faint);
-    padding: 0.05rem 0.45rem;
+    padding: 0.2rem 0.4rem;
     font-size: 1em;
     line-height: 1;
   }
-  .del:hover {
+  .icon-btn:hover {
     color: var(--accent-bright);
     border-color: var(--accent);
+  }
+  .edit-btn {
+    margin-left: auto;
   }
 </style>
