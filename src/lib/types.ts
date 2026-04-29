@@ -138,11 +138,21 @@ export function getSkillStat(name: string): SkillStat | undefined {
   return SKILL_STAT_BY_NAME.get(name);
 }
 
-export const WEAPON_TYPES = [
+// Weapon kind. Melee and range weapons share most fields (name, quality,
+// rof, damage, description) but differ in:
+//   - melee weapons have no ammo and no magazine
+//   - range weapons have ammo (carried by the wielder) and magazine
+//     (capacity per magazine), and a wider set of associated skills.
+export type WeaponKind = "melee" | "range";
+
+export const MELEE_WEAPON_TYPES = [
   "L Melee",
   "M Melee",
   "H Melee",
   "VH Melee",
+] as const;
+
+export const RANGE_WEAPON_TYPES = [
   "M Pistol",
   "H Pistol",
   "VH Pistol",
@@ -157,8 +167,20 @@ export const WEAPON_TYPES = [
   "Rocket Launcher",
 ] as const;
 
+export type MeleeWeaponType = (typeof MELEE_WEAPON_TYPES)[number];
+export type RangeWeaponType = (typeof RANGE_WEAPON_TYPES)[number];
+
+export const WEAPON_TYPES = [
+  ...MELEE_WEAPON_TYPES,
+  ...RANGE_WEAPON_TYPES,
+] as const;
+
 export type WeaponType = (typeof WEAPON_TYPES)[number];
 
+const MELEE_TYPE_SET = new Set<string>(MELEE_WEAPON_TYPES);
+
+// All melee variants share the Melee Weapon skill; range variants spread
+// across Handgun / Shoulder Arms / Archery / Heavy Weapons.
 export const WEAPON_TYPE_SKILL: Record<WeaponType, string> = {
   "L Melee": "Melee Weapon",
   "M Melee": "Melee Weapon",
@@ -177,6 +199,10 @@ export const WEAPON_TYPE_SKILL: Record<WeaponType, string> = {
   "Grenade Launcher": "Heavy Weapons",
   "Rocket Launcher": "Heavy Weapons",
 };
+
+export function kindOfWeaponType(t: WeaponType): WeaponKind {
+  return MELEE_TYPE_SET.has(t) ? "melee" : "range";
+}
 
 // Weapon quality. "" = normal, "excellent" gives +1 to combat number.
 export type WeaponQuality = "" | "excellent" | "poor";
@@ -202,40 +228,79 @@ export function qualityCombatBonus(quality: WeaponQuality): number {
   return quality === "excellent" ? 1 : 0;
 }
 
-export type Weapon = {
+// Common shape for every weapon — both melee and range carry these.
+type WeaponBase = {
   id: string;
   name: string;
-  weaponType: WeaponType | "";
   quality: WeaponQuality;
   rof: number;
-  ammo: number;
   damage: number;
   description: string;
   templateId?: string;
 };
 
-export type WeaponTemplate = {
-  id: string;
-  name: string;
-  weaponType: WeaponType | "";
-  quality: WeaponQuality;
-  rof: number;
-  ammo: number;
-  damage: number;
-  description: string;
+// Melee weapons only ever use the Melee Weapon skill. They have no ammo
+// and no magazine.
+export type MeleeWeapon = WeaponBase & {
+  kind: "melee";
+  weaponType: MeleeWeaponType | "";
 };
 
-export function emptyWeapon(): Weapon {
+// Range weapons add `magazine` (capacity per magazine, fixed by the
+// weapon model) and `ammo` (rounds the wielder is currently carrying).
+export type RangeWeapon = WeaponBase & {
+  kind: "range";
+  weaponType: RangeWeaponType | "";
+  magazine: number;
+  ammo: number;
+};
+
+export type Weapon = MeleeWeapon | RangeWeapon;
+
+// Templates and NPC weapons share the same shape; the NPC simply has
+// its own ammo count for range weapons.
+export type WeaponTemplate = Weapon;
+export type MeleeWeaponTemplate = MeleeWeapon;
+export type RangeWeaponTemplate = RangeWeapon;
+
+export function isMelee(w: Weapon): w is MeleeWeapon {
+  return w.kind === "melee";
+}
+
+export function isRange(w: Weapon): w is RangeWeapon {
+  return w.kind === "range";
+}
+
+export function emptyMeleeWeapon(): MeleeWeapon {
   return {
     id: crypto.randomUUID(),
+    kind: "melee",
     name: "",
     weaponType: "",
     quality: "",
     rof: 1,
+    damage: 0,
+    description: "",
+  };
+}
+
+export function emptyRangeWeapon(): RangeWeapon {
+  return {
+    id: crypto.randomUUID(),
+    kind: "range",
+    name: "",
+    weaponType: "",
+    quality: "",
+    rof: 1,
+    magazine: 0,
     ammo: 0,
     damage: 0,
     description: "",
   };
+}
+
+export function emptyWeapon(kind: WeaponKind = "range"): Weapon {
+  return kind === "melee" ? emptyMeleeWeapon() : emptyRangeWeapon();
 }
 
 export type Skill = {

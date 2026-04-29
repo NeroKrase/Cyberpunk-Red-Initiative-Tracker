@@ -8,7 +8,14 @@ import type {
   Session,
   WeaponTemplate,
 } from "./types";
-import { emptyStats, maxHpFromStats } from "./types";
+import {
+  MELEE_WEAPON_TYPES,
+  emptyStats,
+  isRange,
+  maxHpFromStats,
+} from "./types";
+
+const MELEE_TYPE_NAMES = new Set<string>(MELEE_WEAPON_TYPES);
 
 const STORAGE_KEY = "cpr-initiative-tracker/v1";
 
@@ -79,17 +86,7 @@ function migrateStatBlock(c: Record<string, unknown>) {
   delete c.maxHp;
   if (Array.isArray(c.weapons)) {
     for (const w of c.weapons as Record<string, unknown>[]) {
-      // damage was a string like "4d6"; now a d6 dice count number.
-      if (typeof w.damage === "string") {
-        const m = (w.damage as string).match(/(\d+)/);
-        w.damage = m ? Number(m[1]) : 0;
-      } else if (typeof w.damage !== "number") {
-        w.damage = 0;
-      }
-      w.ammo ??= 0;
-      w.description ??= "";
-      w.weaponType ??= "";
-      w.quality ??= "";
+      migrateWeapon(w);
     }
   }
   if (Array.isArray(c.skills)) {
@@ -102,17 +99,38 @@ function migrateStatBlock(c: Record<string, unknown>) {
 }
 
 function migrateWeaponTemplate(t: Record<string, unknown>) {
-  if (typeof t.damage === "string") {
-    const m = (t.damage as string).match(/(\d+)/);
-    t.damage = m ? Number(m[1]) : 0;
-  } else if (typeof t.damage !== "number") {
-    t.damage = 0;
+  migrateWeapon(t);
+}
+
+// Single migration path for both NPC weapons and registry templates.
+// Derives the new `kind` discriminator from the existing weapon type
+// (untyped → range, since pre-refactor weapons all carried ammo) and
+// drops/adds ammo + magazine accordingly so each shape matches its
+// kind-specific subtype.
+function migrateWeapon(w: Record<string, unknown>) {
+  // Damage strings ("4d6") → d6 dice count number.
+  if (typeof w.damage === "string") {
+    const m = (w.damage as string).match(/(\d+)/);
+    w.damage = m ? Number(m[1]) : 0;
+  } else if (typeof w.damage !== "number") {
+    w.damage = 0;
   }
-  t.rof ??= 1;
-  t.ammo ??= 0;
-  t.description ??= "";
-  t.weaponType ??= "";
-  t.quality ??= "";
+  w.rof ??= 1;
+  w.description ??= "";
+  w.weaponType ??= "";
+  w.quality ??= "";
+
+  if (w.kind !== "melee" && w.kind !== "range") {
+    const t = (w.weaponType as string) || "";
+    w.kind = t && MELEE_TYPE_NAMES.has(t) ? "melee" : "range";
+  }
+  if (w.kind === "melee") {
+    delete w.ammo;
+    delete w.magazine;
+  } else {
+    if (typeof w.ammo !== "number") w.ammo = 0;
+    if (typeof w.magazine !== "number") w.magazine = 0;
+  }
 }
 
 function save() {
@@ -218,10 +236,20 @@ function cloneStatBlock(data: EnemyStatBlock): EnemyStatBlock {
 
 // ---- Weapon templates ----
 
-export type WeaponTemplateInput = Omit<WeaponTemplate, "id">;
+// Distribute Omit across the discriminated union so the resulting type
+// preserves kind narrowing (Omit<A | B, "id"> on its own collapses to a
+// non-discriminated shape).
+type DistributiveOmit<T, K extends keyof any> = T extends unknown
+  ? Omit<T, K>
+  : never;
+
+export type WeaponTemplateInput = DistributiveOmit<WeaponTemplate, "id">;
 
 export function createWeaponTemplate(data: WeaponTemplateInput): WeaponTemplate {
-  const template: WeaponTemplate = { id: crypto.randomUUID(), ...data };
+  const id = crypto.randomUUID();
+  // Spread + id over a discriminated-union input loses narrowing in TS, so
+  // assert the resulting shape — the caller already chose a kind in `data`.
+  const template = { id, ...data } as WeaponTemplate;
   store.weaponTemplates.push(template);
   save();
   return template;
@@ -352,7 +380,7 @@ export function updateWeaponAmmo(
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant || combatant.kind !== "enemy") return;
   const weapon = combatant.weapons.find((w) => w.id === weaponId);
-  if (!weapon) return;
+  if (!weapon || !isRange(weapon)) return;
   weapon.ammo = ammo;
   save();
 }

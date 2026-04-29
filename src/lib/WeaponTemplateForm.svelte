@@ -1,9 +1,23 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { WeaponQuality, WeaponTemplate, WeaponType } from "./types";
-  import { WEAPON_TYPES } from "./types";
+  import type {
+    MeleeWeaponType,
+    RangeWeaponType,
+    WeaponKind,
+    WeaponQuality,
+    WeaponTemplate,
+  } from "./types";
+  import {
+    MELEE_WEAPON_TYPES,
+    RANGE_WEAPON_TYPES,
+  } from "./types";
 
-  type WeaponTemplateInput = Omit<WeaponTemplate, "id">;
+  // Distribute Omit across the discriminated union so kind narrowing
+  // survives. A plain Omit<WeaponTemplate, "id"> collapses the union.
+  type DistOmit<T, K extends keyof any> = T extends unknown
+    ? Omit<T, K>
+    : never;
+  type WeaponTemplateInput = DistOmit<WeaponTemplate, "id">;
 
   type Props = {
     initial?: WeaponTemplateInput;
@@ -14,26 +28,22 @@
 
   let { initial, submitLabel, onSave, onCancel }: Props = $props();
 
-  const seed = untrack(
-    () =>
-      initial ?? {
-        name: "",
-        weaponType: "" as WeaponType | "",
-        quality: "" as WeaponQuality,
-        rof: 1,
-        ammo: 0,
-        damage: 0,
-        description: "",
-      },
-  );
+  const seed = untrack(() => initial);
+  // Narrow once so subsequent property access keeps its kind-specific type.
+  const seedMelee = seed?.kind === "melee" ? seed : undefined;
+  const seedRange = seed?.kind === "range" ? seed : undefined;
 
-  let name = $state(seed.name);
-  let weaponType = $state<WeaponType | "">(seed.weaponType);
-  let quality = $state<WeaponQuality>(seed.quality);
-  let rof = $state(seed.rof);
-  let ammo = $state(seed.ammo);
-  let damage = $state(seed.damage);
-  let description = $state(seed.description);
+  let kind = $state<WeaponKind>(seed?.kind ?? "range");
+  let name = $state(seed?.name ?? "");
+  // We track melee/range types in separate slots so switching kinds
+  // doesn't lose the previously-typed value.
+  let meleeType = $state<MeleeWeaponType | "">(seedMelee?.weaponType ?? "");
+  let rangeType = $state<RangeWeaponType | "">(seedRange?.weaponType ?? "");
+  let quality = $state<WeaponQuality>(seed?.quality ?? "");
+  let rof = $state(seed?.rof ?? 1);
+  let magazine = $state<number>(seedRange?.magazine ?? 0);
+  let damage = $state(seed?.damage ?? 0);
+  let description = $state(seed?.description ?? "");
 
   function natural(value: number, min = 0): number {
     const n = Math.floor(Number(value));
@@ -44,15 +54,32 @@
   function submit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
-    onSave({
-      name: name.trim(),
-      weaponType,
-      quality,
-      rof: natural(rof, 1),
-      ammo: natural(ammo, 0),
-      damage: natural(damage, 0),
-      description: description.trim(),
-    });
+    if (kind === "melee") {
+      onSave({
+        kind: "melee",
+        name: name.trim(),
+        weaponType: meleeType,
+        quality,
+        rof: natural(rof, 1),
+        damage: natural(damage, 0),
+        description: description.trim(),
+      });
+    } else {
+      onSave({
+        kind: "range",
+        name: name.trim(),
+        weaponType: rangeType,
+        quality,
+        rof: natural(rof, 1),
+        magazine: natural(magazine, 0),
+        // Templates don't carry ammo — that lives on each NPC weapon.
+        // Default to magazine size so NPC weapons added from this template
+        // start out fully loaded.
+        ammo: natural(magazine, 0),
+        damage: natural(damage, 0),
+        description: description.trim(),
+      });
+    }
   }
 </script>
 
@@ -63,13 +90,29 @@
       <input bind:value={name} required />
     </label>
     <label>
-      Type
-      <select bind:value={weaponType}>
-        <option value="">— Untyped —</option>
-        {#each WEAPON_TYPES as wt (wt)}
-          <option value={wt}>{wt}</option>
-        {/each}
+      Kind
+      <select bind:value={kind}>
+        <option value="melee">Melee</option>
+        <option value="range">Range</option>
       </select>
+    </label>
+    <label>
+      Type
+      {#if kind === "melee"}
+        <select bind:value={meleeType}>
+          <option value="">— Untyped —</option>
+          {#each MELEE_WEAPON_TYPES as wt (wt)}
+            <option value={wt}>{wt}</option>
+          {/each}
+        </select>
+      {:else}
+        <select bind:value={rangeType}>
+          <option value="">— Untyped —</option>
+          {#each RANGE_WEAPON_TYPES as wt (wt)}
+            <option value={wt}>{wt}</option>
+          {/each}
+        </select>
+      {/if}
     </label>
     <label>
       Quality
@@ -88,10 +131,12 @@
       ROF
       <input type="number" min="1" step="1" bind:value={rof} />
     </label>
-    <label>
-      Ammo
-      <input type="number" min="0" step="1" bind:value={ammo} />
-    </label>
+    {#if kind === "range"}
+      <label>
+        Magazine
+        <input type="number" min="0" step="1" bind:value={magazine} />
+      </label>
+    {/if}
     <label>
       Damage (d6)
       <input type="number" min="0" step="1" bind:value={damage} />
@@ -121,7 +166,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: 2fr 2fr 1.4fr repeat(3, minmax(80px, 1fr));
+    grid-template-columns: 2fr 1fr 2fr 1.4fr repeat(3, minmax(80px, 1fr));
     gap: 0.5rem;
   }
 
