@@ -1,0 +1,74 @@
+name: Snapshot approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  snapshot:
+    if: github.event.review.state == 'approved' && github.event.review.user.type == 'User'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute patch-id
+        id: patch
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE" "$HEAD"
+          pid=$(git diff "$BASE...$HEAD" | git patch-id --stable | awk '{print $1}')
+          [ -z "$pid" ] && pid=empty
+          echo "patch_id=$pid" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert snapshot comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          REVIEWER: ${{ github.event.review.user.login }}
+          PATCH_ID: ${{ steps.patch.outputs.patch_id }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- approval-snapshot v1 -->'
+
+          existing=$(gh api "repos/$REPO/issues/$PR/comments?per_page=100" \
+            --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | .[0] // empty")
+
+          if [ -n "$existing" ]; then
+            id=$(jq -r .id <<<"$existing")
+            old_body=$(jq -r .body <<<"$existing")
+            old_pid=$(grep -m1 '^patch-id=' <<<"$old_body" | cut -d= -f2- || true)
+            old_approvers=$(grep -m1 '^approvers=' <<<"$old_body" | cut -d= -f2- || true)
+          else
+            id=
+            old_pid=
+            old_approvers=
+          fi
+
+          if [ "$old_pid" = "$PATCH_ID" ]; then
+            approvers="$old_approvers"
+          else
+            approvers=
+          fi
+          case ",$approvers," in
+            *,"$REVIEWER",*) ;;
+            *) approvers="${approvers:+$approvers,}$REVIEWER" ;;
+          esac
+
+          body=$(printf '%s\npatch-id=%s\napprovers=%s\n\n<sub>Tracks the effective diff (`base...head` patch-id) at approval time so approvals can be auto-restored after a no-op rebase. Maintained by `.github/workflows/snapshot-approval.yml`.</sub>' \
+            "$MARKER" "$PATCH_ID" "$approvers")
+
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" >/dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$body" >/dev/null
+          fi

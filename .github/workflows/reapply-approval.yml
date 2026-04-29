@@ -1,0 +1,82 @@
+name: Re-apply approval after no-op rebase
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  reapply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read snapshot comment
+        id: read
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- approval-snapshot v1 -->'
+
+          comment=$(gh api "repos/$REPO/issues/$PR/comments?per_page=100" \
+            --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | .[0] // empty")
+
+          if [ -z "$comment" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          body=$(jq -r .body <<<"$comment")
+          stored_pid=$(grep -m1 '^patch-id=' <<<"$body" | cut -d= -f2- || true)
+          approvers=$(grep -m1 '^approvers=' <<<"$body" | cut -d= -f2- || true)
+
+          if [ -z "$stored_pid" ] || [ -z "$approvers" ] || [ "$stored_pid" = "empty" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "stored_pid=$stored_pid" >> "$GITHUB_OUTPUT"
+          echo "approvers=$approvers" >> "$GITHUB_OUTPUT"
+
+      - name: Compute current patch-id
+        if: steps.read.outputs.found == 'true'
+        id: patch
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE" "$HEAD"
+          pid=$(git diff "$BASE...$HEAD" | git patch-id --stable | awk '{print $1}')
+          [ -z "$pid" ] && pid=empty
+          echo "patch_id=$pid" >> "$GITHUB_OUTPUT"
+
+      - name: Mint App token
+        if: steps.read.outputs.found == 'true' && steps.patch.outputs.patch_id == steps.read.outputs.stored_pid
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APPROVAL_BOT_APP_ID }}
+          private-key: ${{ secrets.APPROVAL_BOT_PRIVATE_KEY }}
+
+      - name: Re-approve as bot
+        if: steps.read.outputs.found == 'true' && steps.patch.outputs.patch_id == steps.read.outputs.stored_pid
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          APPROVERS: ${{ steps.read.outputs.approvers }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/$REPO/pulls/$PR/reviews" \
+            -f event=APPROVE \
+            -f body="Auto re-approving on behalf of: $APPROVERS — effective diff is unchanged from approval-time snapshot (no-op rebase)." \
+            >/dev/null
