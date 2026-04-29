@@ -14,11 +14,11 @@
   function onSave(data: WeaponTemplateInput) {
     if (!template) return;
     updateWeaponTemplate(template.id, data);
-    goto("/bestiary");
+    goto("/bestiary?tab=weapons");
   }
 
   function onCancel() {
-    goto("/bestiary");
+    goto("/bestiary?tab=weapons");
   }
 </script>
 

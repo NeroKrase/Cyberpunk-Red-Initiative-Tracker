@@ -172,6 +172,29 @@ export function renameSession(id: string, name: string) {
   save();
 }
 
+export function duplicateSession(id: string): Session | undefined {
+  const session = getSession(id);
+  if (!session) return;
+  const clone = JSON.parse(JSON.stringify(session)) as Session;
+  clone.id = crypto.randomUUID();
+  clone.name = `${session.name}_dup`;
+  for (const enc of clone.encounters) {
+    enc.id = crypto.randomUUID();
+    for (const c of enc.combatants) reassignCombatantIds(c);
+  }
+  const idx = store.sessions.indexOf(session);
+  store.sessions.splice(idx + 1, 0, clone);
+  save();
+  return clone;
+}
+
+function reassignCombatantIds(c: Combatant) {
+  c.id = crypto.randomUUID();
+  if (c.kind !== "enemy") return;
+  for (const w of c.weapons) w.id = crypto.randomUUID();
+  for (const s of c.skills) s.id = crypto.randomUUID();
+}
+
 // ---- Encounters ----
 
 export function createEncounter(sessionId: string, name: string): Encounter | undefined {
@@ -203,6 +226,23 @@ export function renameEncounter(sessionId: string, encounterId: string, name: st
   save();
 }
 
+export function duplicateEncounter(
+  sessionId: string,
+  encounterId: string,
+): Encounter | undefined {
+  const session = getSession(sessionId);
+  const encounter = session?.encounters.find((e) => e.id === encounterId);
+  if (!session || !encounter) return;
+  const clone = JSON.parse(JSON.stringify(encounter)) as Encounter;
+  clone.id = crypto.randomUUID();
+  clone.name = `${encounter.name}_dup`;
+  for (const c of clone.combatants) reassignCombatantIds(c);
+  const idx = session.encounters.indexOf(encounter);
+  session.encounters.splice(idx + 1, 0, clone);
+  save();
+  return clone;
+}
+
 // ---- Templates ----
 
 export function createTemplate(data: EnemyStatBlock): EnemyTemplate {
@@ -228,6 +268,20 @@ export function deleteTemplate(id: string) {
   if (idx === -1) return;
   store.templates.splice(idx, 1);
   save();
+}
+
+export function duplicateTemplate(id: string): EnemyTemplate | undefined {
+  const template = getTemplate(id);
+  if (!template) return;
+  const clone = JSON.parse(JSON.stringify(template)) as EnemyTemplate;
+  clone.id = crypto.randomUUID();
+  clone.name = `${template.name}_dup`;
+  for (const w of clone.weapons) w.id = crypto.randomUUID();
+  for (const s of clone.skills) s.id = crypto.randomUUID();
+  const idx = store.templates.indexOf(template);
+  store.templates.splice(idx + 1, 0, clone);
+  save();
+  return clone;
 }
 
 function cloneStatBlock(data: EnemyStatBlock): EnemyStatBlock {
@@ -271,6 +325,20 @@ export function deleteWeaponTemplate(id: string) {
   if (idx === -1) return;
   store.weaponTemplates.splice(idx, 1);
   save();
+}
+
+export function duplicateWeaponTemplate(id: string): WeaponTemplate | undefined {
+  const template = getWeaponTemplate(id);
+  if (!template) return;
+  const clone: WeaponTemplate = {
+    ...template,
+    id: crypto.randomUUID(),
+    name: `${template.name}_dup`,
+  };
+  const idx = store.weaponTemplates.indexOf(template);
+  store.weaponTemplates.splice(idx + 1, 0, clone);
+  save();
+  return clone;
 }
 
 // ---- Combatants ----
