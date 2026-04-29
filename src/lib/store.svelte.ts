@@ -147,6 +147,13 @@ export function deleteSession(id: string) {
   save();
 }
 
+export function renameSession(id: string, name: string) {
+  const session = getSession(id);
+  if (!session) return;
+  session.name = name;
+  save();
+}
+
 // ---- Encounters ----
 
 export function createEncounter(sessionId: string, name: string): Encounter | undefined {
@@ -168,6 +175,13 @@ export function deleteEncounter(sessionId: string, encounterId: string) {
   const idx = session.encounters.findIndex((e) => e.id === encounterId);
   if (idx === -1) return;
   session.encounters.splice(idx, 1);
+  save();
+}
+
+export function renameEncounter(sessionId: string, encounterId: string, name: string) {
+  const encounter = getEncounter(sessionId, encounterId);
+  if (!encounter) return;
+  encounter.name = name;
   save();
 }
 
