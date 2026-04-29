@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { store, createSession } from "$lib/store.svelte";
+  import { store, createSession, deleteSession } from "$lib/store.svelte";
+  import { showConfirm } from "$lib/confirm.svelte";
 
   let sessionName = $state("");
 
@@ -9,6 +10,14 @@
     if (!trimmed) return;
     createSession(trimmed);
     sessionName = "";
+  }
+
+  async function removeSession(id: string, name: string) {
+    const ok = await showConfirm({
+      title: "Delete session",
+      message: `Delete session "${name}"? All its encounters will be lost.`,
+    });
+    if (ok) deleteSession(id);
   }
 </script>
 
@@ -36,6 +45,12 @@
             <span class="name">{session.name}</span>
           </a>
           <span class="meta">{session.encounters.length} ENC</span>
+          <button
+            type="button"
+            class="del"
+            onclick={() => removeSession(session.id, session.name)}
+            aria-label="Delete {session.name}">×</button
+          >
         </li>
       {/each}
     </ul>
@@ -130,6 +145,18 @@
     font-size: 0.78em;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+  }
+
+  .del {
+    border: 1px solid transparent;
+    color: var(--text-faint);
+    padding: 0.05rem 0.45rem;
+    font-size: 1em;
+    line-height: 1;
+  }
+  .del:hover {
+    color: var(--accent-bright);
+    border-color: var(--accent);
   }
 
   .empty {

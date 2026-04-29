@@ -140,6 +140,13 @@ export function getSession(id: string): Session | undefined {
   return store.sessions.find((s) => s.id === id);
 }
 
+export function deleteSession(id: string) {
+  const idx = store.sessions.findIndex((s) => s.id === id);
+  if (idx === -1) return;
+  store.sessions.splice(idx, 1);
+  save();
+}
+
 // ---- Encounters ----
 
 export function createEncounter(sessionId: string, name: string): Encounter | undefined {
@@ -153,6 +160,15 @@ export function createEncounter(sessionId: string, name: string): Encounter | un
 
 export function getEncounter(sessionId: string, encounterId: string): Encounter | undefined {
   return getSession(sessionId)?.encounters.find((e) => e.id === encounterId);
+}
+
+export function deleteEncounter(sessionId: string, encounterId: string) {
+  const session = getSession(sessionId);
+  if (!session) return;
+  const idx = session.encounters.findIndex((e) => e.id === encounterId);
+  if (idx === -1) return;
+  session.encounters.splice(idx, 1);
+  save();
 }
 
 // ---- Templates ----
@@ -266,6 +282,19 @@ export function addCombatant(
   encounter.combatants.push(combatant);
   save();
   return combatant;
+}
+
+export function removeCombatant(
+  sessionId: string,
+  encounterId: string,
+  combatantId: string,
+) {
+  const encounter = getEncounter(sessionId, encounterId);
+  if (!encounter) return;
+  const idx = encounter.combatants.findIndex((c) => c.id === combatantId);
+  if (idx === -1) return;
+  encounter.combatants.splice(idx, 1);
+  save();
 }
 
 export type CombatantPatch = Partial<{

@@ -4,18 +4,27 @@
     deleteTemplate,
     deleteWeaponTemplate,
   } from "$lib/store.svelte";
+  import { showConfirm } from "$lib/confirm.svelte";
   import { downloadNpcCard, type CardSize } from "$lib/cards";
   import type { EnemyTemplate } from "$lib/types";
   import { maxHpFromStats } from "$lib/types";
 
   let tab = $state<"npcs" | "weapons">("npcs");
 
-  function removeTemplate(id: string, name: string) {
-    if (confirm(`Delete record "${name}"?`)) deleteTemplate(id);
+  async function removeTemplate(id: string, name: string) {
+    const ok = await showConfirm({
+      title: "Delete record",
+      message: `Delete record "${name}"?`,
+    });
+    if (ok) deleteTemplate(id);
   }
 
-  function removeWeapon(id: string, name: string) {
-    if (confirm(`Delete weapon "${name}"?`)) deleteWeaponTemplate(id);
+  async function removeWeapon(id: string, name: string) {
+    const ok = await showConfirm({
+      title: "Delete weapon",
+      message: `Delete weapon "${name}"?`,
+    });
+    if (ok) deleteWeaponTemplate(id);
   }
 
   async function generateCard(template: EnemyTemplate, size: CardSize) {
