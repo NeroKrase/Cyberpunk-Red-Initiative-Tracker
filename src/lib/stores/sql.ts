@@ -31,13 +31,13 @@ export async function runTx<T>(
 
 // ---- Sessions ----
 
+// Caller wraps in runTx for atomicity; inner helpers stay tx-free so
+// they can be composed without nesting (SQLite has no nested txs).
 export async function sqlInsertSession(db: Database, s: Session): Promise<void> {
-  await runTx(db, async () => {
-    await db.execute("INSERT INTO sessions (id, name) VALUES ($1, $2)", [s.id, s.name]);
-    for (let i = 0; i < s.encounters.length; i++) {
-      await sqlInsertEncounterDeep(db, s.id, s.encounters[i], i);
-    }
-  });
+  await db.execute("INSERT INTO sessions (id, name) VALUES ($1, $2)", [s.id, s.name]);
+  for (let i = 0; i < s.encounters.length; i++) {
+    await sqlInsertEncounterDeep(db, s.id, s.encounters[i], i);
+  }
 }
 
 export async function sqlUpdateSessionName(
@@ -335,10 +335,8 @@ export async function sqlInsertTemplate(
   db: Database,
   t: EnemyTemplate,
 ): Promise<void> {
-  await runTx(db, async () => {
-    await sqlInsertTemplateRow(db, t);
-    await sqlInsertTemplateChildren(db, t);
-  });
+  await sqlInsertTemplateRow(db, t);
+  await sqlInsertTemplateChildren(db, t);
 }
 
 async function sqlInsertTemplateRow(db: Database, t: EnemyTemplate): Promise<void> {
@@ -433,46 +431,45 @@ async function sqlInsertTemplateChildren(
 
 // updateTemplate replaces the entire stat block — simplest correct
 // SQL is UPDATE the parent + DELETE children + re-INSERT children.
+// Caller wraps in runTx.
 export async function sqlUpdateTemplate(
   db: Database,
   t: EnemyTemplate,
 ): Promise<void> {
-  await runTx(db, async () => {
-    await db.execute(
-      `UPDATE enemy_templates SET
-         name=$1, role=$2, reputation=$3,
-         stat_int=$4, stat_ref=$5, stat_dex=$6, stat_tech=$7, stat_cool=$8,
-         stat_will=$9, stat_move=$10, stat_body=$11, stat_emp=$12,
-         armor_head_name=$13, armor_head_sp=$14, armor_body_name=$15, armor_body_sp=$16,
-         gear_json=$17, cyberware_json=$18
-       WHERE id=$19`,
-      [
-        t.name,
-        t.role,
-        t.reputation,
-        t.stats.int,
-        t.stats.ref,
-        t.stats.dex,
-        t.stats.tech,
-        t.stats.cool,
-        t.stats.will,
-        t.stats.move,
-        t.stats.body,
-        t.stats.emp,
-        t.armor.head.name,
-        t.armor.head.sp,
-        t.armor.body.name,
-        t.armor.body.sp,
-        JSON.stringify(t.gear),
-        JSON.stringify(t.cyberware),
-        t.id,
-      ],
-    );
-    await db.execute("DELETE FROM template_skills WHERE template_id = $1", [t.id]);
-    await db.execute("DELETE FROM template_melee_weapons WHERE template_id = $1", [t.id]);
-    await db.execute("DELETE FROM template_range_weapons WHERE template_id = $1", [t.id]);
-    await sqlInsertTemplateChildren(db, t);
-  });
+  await db.execute(
+    `UPDATE enemy_templates SET
+       name=$1, role=$2, reputation=$3,
+       stat_int=$4, stat_ref=$5, stat_dex=$6, stat_tech=$7, stat_cool=$8,
+       stat_will=$9, stat_move=$10, stat_body=$11, stat_emp=$12,
+       armor_head_name=$13, armor_head_sp=$14, armor_body_name=$15, armor_body_sp=$16,
+       gear_json=$17, cyberware_json=$18
+     WHERE id=$19`,
+    [
+      t.name,
+      t.role,
+      t.reputation,
+      t.stats.int,
+      t.stats.ref,
+      t.stats.dex,
+      t.stats.tech,
+      t.stats.cool,
+      t.stats.will,
+      t.stats.move,
+      t.stats.body,
+      t.stats.emp,
+      t.armor.head.name,
+      t.armor.head.sp,
+      t.armor.body.name,
+      t.armor.body.sp,
+      JSON.stringify(t.gear),
+      JSON.stringify(t.cyberware),
+      t.id,
+    ],
+  );
+  await db.execute("DELETE FROM template_skills WHERE template_id = $1", [t.id]);
+  await db.execute("DELETE FROM template_melee_weapons WHERE template_id = $1", [t.id]);
+  await db.execute("DELETE FROM template_range_weapons WHERE template_id = $1", [t.id]);
+  await sqlInsertTemplateChildren(db, t);
 }
 
 export async function sqlDeleteTemplate(db: Database, id: string): Promise<void> {
@@ -515,23 +512,19 @@ export async function sqlInsertWeaponTemplate(
 // updateWeaponTemplate may change kind (UI exposes a kind toggle), so
 // always clear both kind tables before re-inserting into the right one.
 // Cheap: each table holds at most one row per id and the registry is
-// small. Caller wraps in a tx if needed.
+// small. Caller wraps in runTx for atomicity.
 export async function sqlReplaceWeaponTemplate(
   db: Database,
   w: WeaponTemplate,
 ): Promise<void> {
-  await runTx(db, async () => {
-    await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [w.id]);
-    await db.execute("DELETE FROM range_weapon_templates WHERE id = $1", [w.id]);
-    await sqlInsertWeaponTemplate(db, w);
-  });
+  await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [w.id]);
+  await db.execute("DELETE FROM range_weapon_templates WHERE id = $1", [w.id]);
+  await sqlInsertWeaponTemplate(db, w);
 }
 
 // We don't know which kind a registry entry is without looking it up,
-// so DELETE from both tables. At most one row matches.
+// so DELETE from both tables. At most one row matches. Caller wraps.
 export async function sqlDeleteWeaponTemplate(db: Database, id: string): Promise<void> {
-  await runTx(db, async () => {
-    await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [id]);
-    await db.execute("DELETE FROM range_weapon_templates WHERE id = $1", [id]);
-  });
+  await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [id]);
+  await db.execute("DELETE FROM range_weapon_templates WHERE id = $1", [id]);
 }
