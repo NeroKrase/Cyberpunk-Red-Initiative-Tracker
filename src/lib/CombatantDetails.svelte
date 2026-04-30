@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     STAT_KEYS,
+    isRange,
     maxHpFromStats,
     skillTotal,
     weaponCombatNumber,
@@ -91,17 +92,23 @@
               <span class="cell-label">ROF</span>
               <span class="mono cell-value">{w.rof}</span>
             </span>
-            <span class="cell">
-              <span class="cell-label">Ammo</span>
-              <input
-                type="number"
-                class="cell-input num mono"
-                min="0"
-                value={w.ammo}
-                onchange={(e) => onAmmoChange(w.id, e.currentTarget.value)}
-                aria-label="Ammo for {w.name || 'weapon'}"
-              />
-            </span>
+            {#if isRange(w)}
+              <span class="cell">
+                <span class="cell-label">Mag</span>
+                <span class="mono cell-value">{w.magazine}</span>
+              </span>
+              <span class="cell">
+                <span class="cell-label">Ammo</span>
+                <input
+                  type="number"
+                  class="cell-input num mono"
+                  min="0"
+                  value={w.ammo}
+                  onchange={(e) => onAmmoChange(w.id, e.currentTarget.value)}
+                  aria-label="Ammo for {w.name || 'weapon'}"
+                />
+              </span>
+            {/if}
             <span class="cell">
               <span class="mono cell-value">{w.damage}D6</span>
             </span>

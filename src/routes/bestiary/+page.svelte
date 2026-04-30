@@ -3,19 +3,33 @@
     store,
     deleteTemplate,
     deleteWeaponTemplate,
+    duplicateTemplate,
+    duplicateWeaponTemplate,
   } from "$lib/store.svelte";
+  import { showConfirm } from "$lib/confirm.svelte";
   import { downloadNpcCard, type CardSize } from "$lib/cards";
   import type { EnemyTemplate } from "$lib/types";
   import { maxHpFromStats } from "$lib/types";
+  import { page } from "$app/state";
 
-  let tab = $state<"npcs" | "weapons">("npcs");
+  let tab = $state<"npcs" | "weapons">(
+    page.url.searchParams.get("tab") === "weapons" ? "weapons" : "npcs",
+  );
 
-  function removeTemplate(id: string, name: string) {
-    if (confirm(`Delete record "${name}"?`)) deleteTemplate(id);
+  async function removeTemplate(id: string, name: string) {
+    const ok = await showConfirm({
+      title: "Delete record",
+      message: `Delete record "${name}"?`,
+    });
+    if (ok) deleteTemplate(id);
   }
 
-  function removeWeapon(id: string, name: string) {
-    if (confirm(`Delete weapon "${name}"?`)) deleteWeaponTemplate(id);
+  async function removeWeapon(id: string, name: string) {
+    const ok = await showConfirm({
+      title: "Delete weapon",
+      message: `Delete weapon "${name}"?`,
+    });
+    if (ok) deleteWeaponTemplate(id);
   }
 
   async function generateCard(template: EnemyTemplate, size: CardSize) {
@@ -96,6 +110,27 @@
             <button
               type="button"
               class="del"
+              onclick={() => duplicateTemplate(template.id)}
+              aria-label="Duplicate {template.name}"
+            >
+              <svg
+                viewBox="0 0 100 100"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="20" y="30" width="50" height="55" />
+                <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="del"
               onclick={() => removeTemplate(template.id, template.name)}
               aria-label="Delete {template.name}">×</button
             >
@@ -116,9 +151,32 @@
               <span class="prefix">›</span>
               <span class="name">{weapon.name || "(unnamed)"}</span>
             </a>
-            <span class="meta"
-              >ROF {weapon.rof} · {weapon.damage}D6 · AMMO {weapon.ammo}</span
+            <span class="meta">
+              {weapon.kind === "melee" ? "MELEE" : "RANGE"} · ROF {weapon.rof}
+              · {weapon.damage}D6{#if weapon.kind === "range"}
+                · MAG {weapon.magazine}{/if}
+            </span>
+            <button
+              type="button"
+              class="del"
+              onclick={() => duplicateWeaponTemplate(weapon.id)}
+              aria-label="Duplicate {weapon.name}"
             >
+              <svg
+                viewBox="0 0 100 100"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="20" y="30" width="50" height="55" />
+                <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
+              </svg>
+            </button>
             <button
               type="button"
               class="del"
@@ -271,9 +329,12 @@
   }
 
   .del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid transparent;
     color: var(--text-faint);
-    padding: 0.05rem 0.45rem;
+    padding: 0.2rem 0.4rem;
     font-size: 1em;
     line-height: 1;
   }

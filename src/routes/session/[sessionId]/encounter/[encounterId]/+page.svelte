@@ -7,10 +7,12 @@
     updateCombatant,
     updateArmorSp,
     applyDamage,
+    removeCombatant,
     store,
   } from "$lib/store.svelte";
   import { woundState, maxHpFromStats, type ArmorLocation } from "$lib/types";
   import CombatantDetails from "$lib/CombatantDetails.svelte";
+  import { showConfirm } from "$lib/confirm.svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   const session = $derived(getSession(page.params.sessionId!));
@@ -93,6 +95,18 @@
     if (!Number.isFinite(dmg) || dmg <= 0 || !session || !encounter) return;
     applyDamage(session.id, encounter.id, combatantId, dmg, location);
     dmgInput.value = "";
+  }
+
+  async function deleteCombatant(combatantId: string, combatantName: string) {
+    if (!session || !encounter) return;
+    const ok = await showConfirm({
+      title: "Remove combatant",
+      message: `Remove "${combatantName}" from the encounter?`,
+      confirmLabel: "Remove",
+    });
+    if (!ok) return;
+    expanded.delete(combatantId);
+    removeCombatant(session.id, encounter.id, combatantId);
   }
 </script>
 
@@ -245,6 +259,12 @@
                 />
                 <button type="submit">Hit</button>
               </form>
+              <button
+                type="button"
+                class="del"
+                onclick={() => deleteCombatant(combatant.id, combatant.name)}
+                aria-label="Remove {combatant.name}">×</button
+              >
             </div>
             {#if isOpen}
               <CombatantDetails
@@ -266,6 +286,12 @@
               />
               <span class="kind-tag pc">PC</span>
               <strong class="name">{combatant.name}</strong>
+              <button
+                type="button"
+                class="del"
+                onclick={() => deleteCombatant(combatant.id, combatant.name)}
+                aria-label="Remove {combatant.name}">×</button
+              >
             </div>
           {/if}
         </li>
@@ -428,6 +454,19 @@
     gap: 0.2rem;
     margin: 0;
     margin-left: auto;
+  }
+
+  .del {
+    margin-left: auto;
+    border: 1px solid transparent;
+    color: var(--text-faint);
+    padding: 0.05rem 0.45rem;
+    font-size: 1em;
+    line-height: 1;
+  }
+  .del:hover {
+    color: var(--accent-bright);
+    border-color: var(--accent);
   }
 
   .damage-form select,

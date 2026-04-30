@@ -6,11 +6,11 @@
 
   function onSave(data: WeaponTemplateInput) {
     createWeaponTemplate(data);
-    goto("/bestiary");
+    goto("/bestiary?tab=weapons");
   }
 
   function onCancel() {
-    goto("/bestiary");
+    goto("/bestiary?tab=weapons");
   }
 </script>
 

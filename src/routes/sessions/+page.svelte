@@ -1,5 +1,13 @@
 <script lang="ts">
-  import { store, createSession } from "$lib/store.svelte";
+  import {
+    store,
+    createSession,
+    deleteSession,
+    renameSession,
+    duplicateSession,
+  } from "$lib/store.svelte";
+  import { showConfirm } from "$lib/confirm.svelte";
+  import { showPrompt } from "$lib/prompt.svelte";
 
   let sessionName = $state("");
 
@@ -9,6 +17,23 @@
     if (!trimmed) return;
     createSession(trimmed);
     sessionName = "";
+  }
+
+  async function removeSession(id: string, name: string) {
+    const ok = await showConfirm({
+      title: "Delete session",
+      message: `Delete session "${name}"? All its encounters will be lost.`,
+    });
+    if (ok) deleteSession(id);
+  }
+
+  async function editSession(id: string, name: string) {
+    const next = await showPrompt({
+      title: "Rename session",
+      label: "Callsign",
+      initialValue: name,
+    });
+    if (next && next !== name) renameSession(id, next);
   }
 </script>
 
@@ -36,6 +61,54 @@
             <span class="name">{session.name}</span>
           </a>
           <span class="meta">{session.encounters.length} ENC</span>
+          <button
+            type="button"
+            class="icon-btn"
+            onclick={() => editSession(session.id, session.name)}
+            aria-label="Rename {session.name}"
+          >
+            <svg
+              viewBox="0 0 100 100"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M 65 25 L 75 35 L 30 80 L 15 85 L 20 70 Z" />
+              <path d="M 55 35 L 65 45" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-btn"
+            onclick={() => duplicateSession(session.id)}
+            aria-label="Duplicate {session.name}"
+          >
+            <svg
+              viewBox="0 0 100 100"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="20" y="30" width="50" height="55" />
+              <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-btn"
+            onclick={() => removeSession(session.id, session.name)}
+            aria-label="Delete {session.name}">×</button
+          >
         </li>
       {/each}
     </ul>
@@ -130,6 +203,21 @@
     font-size: 0.78em;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+  }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    color: var(--text-faint);
+    padding: 0.2rem 0.4rem;
+    font-size: 1em;
+    line-height: 1;
+  }
+  .icon-btn:hover {
+    color: var(--accent-bright);
+    border-color: var(--accent);
   }
 
   .empty {
