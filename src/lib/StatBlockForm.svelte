@@ -369,7 +369,6 @@
           />
           <button
             type="button"
-            class="del"
             onclick={() => weapons.splice(i, 1)}
             aria-label="Remove {weapon.name || 'weapon'}">×</button
           >
@@ -494,7 +493,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
@@ -562,7 +561,6 @@
   }
 
   .label-text {
-    font-size: 0.85em;
     color: var(--text-muted);
   }
 
@@ -582,9 +580,14 @@
 
   .skill-grid {
     display: grid;
-    grid-template-columns: 1fr auto 4.5rem 4.5rem auto auto;
+    grid-template-columns: 1fr auto 4.5rem 4.5rem 4.5rem auto;
     gap: 0.4rem 0.6rem;
     align-items: center;
+  }
+
+  .skill-grid .num {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .skill-head,
@@ -611,7 +614,7 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-weight: 700;
-    text-align: right;
+    text-align: center;
     min-width: 1.5rem;
     color: var(--faction, var(--ncpd));
   }
@@ -626,18 +629,23 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      minmax(8rem, 1fr) /* Name */
+      minmax(11.4rem, 1.9fr) /* Name */
       5rem /* Kind */
-      minmax(6.5rem, 1fr) /* Type */
-      minmax(6.5rem, 1fr) /* Qual */
+      minmax(3.25rem, 0.5fr) /* Type */
+      minmax(3.9rem, 0.6fr) /* Qual */
       2.5rem /* C# */
-      3.5rem /* ROF */
-      3.5rem /* Mag */
-      3.5rem /* Ammo */
-      3.5rem /* Dmg */
+      4rem /* ROF */
+      4rem /* Mag */
+      4rem /* Ammo */
+      4rem /* Dmg */
       auto; /* × */
     gap: 0.4rem 0.6rem;
     align-items: center;
+  }
+
+  .weapon-grid .num {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .kind-select,
@@ -726,15 +734,4 @@
     margin-top: 0.3rem;
   }
 
-  .del {
-    border: 1px solid transparent;
-    color: var(--text-faint);
-    padding: 0.05rem 0.45rem;
-    font-size: 1em;
-    line-height: 1;
-  }
-  .del:hover {
-    color: var(--accent-bright);
-    border-color: var(--accent);
-  }
 </style>
