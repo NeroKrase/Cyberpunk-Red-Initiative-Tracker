@@ -5,6 +5,19 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    "sql:default",
+    {
+      "identifier": "sql:allow-load",
+      "allow": [{ "path": "sqlite:initiative-tracker.db" }]
+    },
+    {
+      "identifier": "sql:allow-execute",
+      "allow": [{ "path": "sqlite:initiative-tracker.db" }]
+    },
+    {
+      "identifier": "sql:allow-select",
+      "allow": [{ "path": "sqlite:initiative-tracker.db" }]
+    }
   ]
 }
