@@ -9,48 +9,17 @@ import type {
   WeaponTemplate,
 } from "./types";
 import { isRange, maxHpFromStats } from "./types";
-import { migrate } from "./stores/migrations";
-
-const STORAGE_KEY = "cpr-initiative-tracker/v1";
-
-type StoreData = {
-  sessions: Session[];
-  templates: EnemyTemplate[];
-  weaponTemplates: WeaponTemplate[];
-};
-
-function load(): StoreData {
-  const empty: StoreData = { sessions: [], templates: [], weaponTemplates: [] };
-  if (typeof localStorage === "undefined") return empty;
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return empty;
-  try {
-    const parsed = JSON.parse(raw);
-    const data: StoreData = Array.isArray(parsed)
-      ? { sessions: parsed, templates: [], weaponTemplates: [] }
-      : {
-          sessions: parsed.sessions ?? [],
-          templates: parsed.templates ?? [],
-          weaponTemplates: parsed.weaponTemplates ?? [],
-        };
-    migrate(data);
-    return data;
-  } catch {
-    return empty;
-  }
-}
+import { load as persistLoad, save as persistSave, type StoreData } from "./stores/persist";
 
 function save() {
-  if (typeof localStorage === "undefined") return;
-  const data: StoreData = {
+  persistSave({
     sessions: store.sessions,
     templates: store.templates,
     weaponTemplates: store.weaponTemplates,
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  });
 }
 
-export const store = $state<StoreData>(load());
+export const store = $state<StoreData>(persistLoad());
 
 // ---- Sessions ----
 
