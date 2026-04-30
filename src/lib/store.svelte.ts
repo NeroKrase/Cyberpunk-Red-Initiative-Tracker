@@ -9,17 +9,9 @@ import type {
   WeaponTemplate,
 } from "./types";
 import { isRange, maxHpFromStats } from "./types";
-import { load as persistLoad, save as persistSave, type StoreData } from "./stores/persist";
+import { store, save } from "./stores/state.svelte";
 
-function save() {
-  persistSave({
-    sessions: store.sessions,
-    templates: store.templates,
-    weaponTemplates: store.weaponTemplates,
-  });
-}
-
-export const store = $state<StoreData>(persistLoad());
+export { store };
 
 // ---- Sessions ----
 
