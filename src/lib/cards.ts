@@ -6,6 +6,17 @@ import {
   skillTotal,
   weaponCombatNumber,
 } from "./types";
+import { notify } from "./notification-queue.svelte";
+
+// Detects whether the page is running inside the Tauri webview shell.
+// In the shell we save into the app data directory; in a plain browser
+// (dev preview, vite preview, etc.) we fall back to a normal download.
+function isTauri(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
+  );
+}
 
 // Compose the weapon name as it appears on cards: optional quality prefix
 // (e.g. "EQ ", "PR ") followed by the title-cased weapon name.
@@ -59,22 +70,59 @@ function slug(s: string): string {
 
 function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
   return new Promise<void>((resolve) => {
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (!blob) {
         resolve();
         return;
       }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      if (isTauri()) {
+        try {
+          const path = await saveBlobViaTauri(blob, filename);
+          notify({
+            kind: "success",
+            title: "Card saved",
+            body: `Saved to ${path}`,
+          });
+        } catch (err) {
+          notify({
+            kind: "error",
+            title: "Failed to save card",
+            body: err instanceof Error ? err.message : String(err),
+          });
+        }
+      } else {
+        // Fallback for plain-browser dev/preview: trigger a download.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        notify({
+          kind: "info",
+          title: "Card downloaded",
+          body: `Saved as ${filename} via browser download`,
+        });
+      }
       resolve();
     }, "image/png");
   });
+}
+
+// Sends the PNG bytes to the Rust `save_card` command which writes them
+// into `<app_data_dir>/cards/<filename>` and returns the absolute path.
+async function saveBlobViaTauri(blob: Blob, filename: string): Promise<string> {
+  // Lazy-load the API so a vite/browser build that never enters this branch
+  // doesn't pay the bundle cost.
+  const { invoke } = await import("@tauri-apps/api/core");
+  const buffer = await blob.arrayBuffer();
+  // `serde_json` decodes Vec<u8> from a JSON array of byte values, which
+  // is what Tauri's invoke serialiser produces from a number array.
+  const bytes = Array.from(new Uint8Array(buffer));
+  return await invoke<string>("save_card", { filename, bytes });
 }
 
 // ---------- Drawing primitives ----------

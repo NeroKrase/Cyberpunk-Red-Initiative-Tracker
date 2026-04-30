@@ -1,5 +1,6 @@
 <script lang="ts">
   import "../app.css";
+  import Notifications from "$lib/Notifications.svelte";
 
   let { children } = $props();
 </script>
@@ -7,6 +8,8 @@
 <main>
   {@render children()}
 </main>
+
+<Notifications />
 
 <style>
   main {
