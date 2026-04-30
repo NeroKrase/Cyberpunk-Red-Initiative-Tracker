@@ -1,5 +1,6 @@
 <script lang="ts">
   import "../app.css";
+  import Notifications from "$lib/Notifications.svelte";
   import ConfirmDialog from "$lib/ConfirmDialog.svelte";
   import PromptDialog from "$lib/PromptDialog.svelte";
 
@@ -10,6 +11,7 @@
   {@render children()}
 </main>
 
+<Notifications />
 <ConfirmDialog />
 <PromptDialog />
 
