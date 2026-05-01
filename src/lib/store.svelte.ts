@@ -58,7 +58,7 @@ function migrate(data: StoreData) {
     migrateStatBlock(raw as Record<string, unknown>);
   }
   for (const raw of data.weaponTemplates as unknown[]) {
-    migrateWeaponTemplate(raw as Record<string, unknown>);
+    migrateWeapon(raw as Record<string, unknown>);
   }
 }
 
@@ -98,15 +98,12 @@ function migrateStatBlock(c: Record<string, unknown>) {
   }
 }
 
-function migrateWeaponTemplate(t: Record<string, unknown>) {
-  migrateWeapon(t);
-}
-
 // Single migration path for both NPC weapons and registry templates.
 // Derives the new `kind` discriminator from the existing weapon type
 // (untyped → range, since pre-refactor weapons all carried ammo) and
 // drops/adds ammo + magazine accordingly so each shape matches its
-// kind-specific subtype.
+// kind-specific subtype. Also folds the short-lived `magazineMax` split
+// back into the single `magazine` (= max capacity) field.
 function migrateWeapon(w: Record<string, unknown>) {
   // Damage strings ("4d6") → d6 dice count number.
   if (typeof w.damage === "string") {
@@ -124,13 +121,21 @@ function migrateWeapon(w: Record<string, unknown>) {
     const t = (w.weaponType as string) || "";
     w.kind = t && MELEE_TYPE_NAMES.has(t) ? "melee" : "range";
   }
+
   if (w.kind === "melee") {
     delete w.ammo;
     delete w.magazine;
-  } else {
-    if (typeof w.ammo !== "number") w.ammo = 0;
-    if (typeof w.magazine !== "number") w.magazine = 0;
+    delete w.magazineMax;
+    return;
   }
+  // Fold `magazineMax` (interim split) back into `magazine`. If both
+  // exist, prefer magazineMax since it was the static cap.
+  if (typeof w.magazineMax === "number") {
+    w.magazine = w.magazineMax;
+    delete w.magazineMax;
+  }
+  if (typeof w.ammo !== "number") w.ammo = 0;
+  if (typeof w.magazine !== "number") w.magazine = 0;
 }
 
 function save() {
@@ -314,9 +319,11 @@ export function getWeaponTemplate(id: string): WeaponTemplate | undefined {
 }
 
 export function updateWeaponTemplate(id: string, data: WeaponTemplateInput) {
-  const template = getWeaponTemplate(id);
-  if (!template) return;
-  Object.assign(template, data);
+  const idx = store.weaponTemplates.findIndex((t) => t.id === id);
+  if (idx === -1) return;
+  // Replace the object outright so kind-foreign keys (e.g. magazineMax
+  // when switching range→melee) don't survive as orphan properties.
+  store.weaponTemplates[idx] = { id, ...data } as WeaponTemplate;
   save();
 }
 
@@ -378,6 +385,10 @@ export function addCombatant(
     if (!template) return;
     const { id: _templateId, ...statBlock } = template;
     const snapshot = cloneStatBlock(statBlock);
+    // Each NPC instance owns its own weapon/skill rows — re-key them so
+    // multiple NPCs spawned from the same template don't share IDs.
+    for (const w of snapshot.weapons) w.id = crypto.randomUUID();
+    for (const s of snapshot.skills) s.id = crypto.randomUUID();
     const override = input.nameOverride?.trim();
     if (override) snapshot.name = override;
     combatant = {
@@ -438,6 +449,11 @@ export function updateArmorSp(
   save();
 }
 
+function clampNonNegativeInt(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
+}
+
 export function updateWeaponAmmo(
   sessionId: string,
   encounterId: string,
@@ -449,7 +465,7 @@ export function updateWeaponAmmo(
   if (!combatant || combatant.kind !== "enemy") return;
   const weapon = combatant.weapons.find((w) => w.id === weaponId);
   if (!weapon || !isRange(weapon)) return;
-  weapon.ammo = ammo;
+  weapon.ammo = clampNonNegativeInt(ammo);
   save();
 }
 
@@ -460,22 +476,15 @@ export function applyDamage(
   damage: number,
   location: ArmorLocation,
 ) {
-  console.log("Отримана шкода у локацію:", location);
-
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant || combatant.kind !== "enemy" || damage <= 0) return;
-  
+
   const enemy = combatant as Enemy;
   const sp = enemy.armor[location].sp;
-  
+
   if (damage > sp) {
-    // Перевіряємо, чи влучання прийшлося в голову
-    if (location === "head") {
-      enemy.hp -= (damage - sp) * 2;
-    } else {
-      enemy.hp -= damage - sp;
-    }
-    
+    const through = damage - sp;
+    enemy.hp -= location === "head" ? through * 2 : through;
     if (sp > 0) enemy.armor[location].sp = sp - 1;
   }
   save();

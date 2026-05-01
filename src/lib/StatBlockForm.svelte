@@ -103,8 +103,8 @@
             kind: "range",
             weaponType: template.weaponType,
             magazine: template.magazine,
-            // NPC starts out fully loaded — ammo defaults to magazine size.
-            ammo: 0,
+            // NPC starts fully loaded — ammo defaults to magazine size.
+            ammo: template.magazine,
           },
     );
   }
@@ -144,21 +144,22 @@
     }
   }
 
-  // Combat number = associated-skill total + EQ bonus. Read-only, derived
-  // from the NPC's stats/skills so it stays in sync as the user edits.
+  // Combat number = associated-skill total + EQ bonus. Memoized via
+  // $derived so we only rebuild the lookup block when stats/skills
+  // actually change, instead of once per weapon row per keystroke.
+  const combatBlock = $derived<EnemyStatBlock>({
+    name,
+    role,
+    reputation,
+    stats,
+    armor,
+    weapons,
+    skills,
+    gear,
+    cyberware,
+  });
   function combatNumber(weapon: Weapon): string {
-    const block: EnemyStatBlock = {
-      name,
-      role,
-      reputation,
-      stats,
-      armor,
-      weapons,
-      skills,
-      gear,
-      cyberware,
-    };
-    const v = weaponCombatNumber(block, weapon.weaponType, weapon.quality);
+    const v = weaponCombatNumber(combatBlock, weapon.weaponType, weapon.quality);
     return v == null ? "—" : String(v);
   }
 
@@ -198,7 +199,11 @@
           min="0"
           max={MAX_REPUTATION}
           step="1"
-          bind:value={reputation}
+          value={reputation}
+          oninput={(e) => {
+            reputation = clampReputation(Number(e.currentTarget.value));
+            e.currentTarget.value = String(reputation);
+          }}
         />
       </label>
       <div class="readonly-field" title="HP = 10 + 5 × ⌈(BODY + WILL) / 2⌉">
@@ -270,9 +275,7 @@
         <span class="weapon-head" title="Combat number">C#</span>
         <span class="weapon-head">ROF</span>
         <span class="weapon-head" title="Magazine capacity">Mag</span>
-        <span class="weapon-head" title="Ammo carried (range only)"
-          >Ammo</span
-        >
+        <span class="weapon-head" title="Ammo carried (range only)">Ammo</span>
         <span class="weapon-head">Dmg (d6)</span>
         <span></span>
         {#each weapons as weapon, i (weapon.id)}
@@ -629,10 +632,10 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      minmax(11.4rem, 1.9fr) /* Name */
+      minmax(8rem, 1.2fr) /* Name (slimmer) */
       5rem /* Kind */
-      minmax(3.25rem, 0.5fr) /* Type */
-      minmax(3.9rem, 0.6fr) /* Qual */
+      minmax(10rem, 1.4fr) /* Type (wider) */
+      minmax(8rem, 0.7fr) /* Qual — wide enough for "EQ — Excellent" */
       2.5rem /* C# */
       4rem /* ROF */
       4rem /* Mag */
@@ -663,32 +666,22 @@
     font-size: 0.85em;
     font-weight: 700;
   }
-  /* Closed-select bg follows the selected quality; text colour stays
-     normal (white/black depending on background contrast). */
-  .quality-select.quality-bg-excellent {
-    background-color: #d4a017;
-    color: #000;
-  }
-  .quality-select.quality-bg-poor {
-    background-color: var(--accent);
-    color: #fff;
-  }
-  .quality-select.quality-bg-normal {
-    background-color: #6b6b75;
-    color: #fff;
-  }
-  /* Options keep their own colour regardless of current selection. */
+  /* Closed-select bg follows the selected quality. Tokens only — never
+     raw hex (per STYLE.md). */
+  .quality-select.quality-bg-excellent,
   .quality-select option.quality-opt-excellent {
-    background-color: #d4a017;
-    color: #000;
+    background-color: var(--hazard);
+    color: var(--bg);
   }
+  .quality-select.quality-bg-poor,
   .quality-select option.quality-opt-poor {
     background-color: var(--accent);
-    color: #fff;
+    color: var(--text);
   }
+  .quality-select.quality-bg-normal,
   .quality-select option.quality-opt-normal {
-    background-color: #6b6b75;
-    color: #fff;
+    background-color: var(--text-faint);
+    color: var(--text);
   }
 
   .combat-num {
@@ -702,7 +695,7 @@
 
   .weapon-desc {
     grid-column: 1 / -1;
-    margin: -0.1rem 0 0.5rem;
+    margin: 0 0 0.5rem;
   }
   .weapon-desc summary {
     cursor: pointer;

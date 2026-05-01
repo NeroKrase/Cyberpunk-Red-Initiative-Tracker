@@ -141,8 +141,9 @@ export function getSkillStat(name: string): SkillStat | undefined {
 // Weapon kind. Melee and range weapons share most fields (name, quality,
 // rof, damage, description) but differ in:
 //   - melee weapons have no ammo and no magazine
-//   - range weapons have ammo (carried by the wielder) and magazine
-//     (capacity per magazine), and a wider set of associated skills.
+//   - range weapons have ammo (current rounds carried) and magazine
+//     (capacity per magazine, static), and a wider set of associated
+//     skills.
 export type WeaponKind = "melee" | "range";
 
 export const MELEE_WEAPON_TYPES = [

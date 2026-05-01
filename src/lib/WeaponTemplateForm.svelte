@@ -72,9 +72,9 @@
         quality,
         rof: natural(rof, 1),
         magazine: natural(magazine, 0),
-        // Templates don't carry ammo — that lives on each NPC weapon.
-        // Default to magazine size so NPC weapons added from this template
-        // start out fully loaded.
+        // NPC weapons added from this template start with ammo equal to
+        // magazine size (fully loaded). Templates carry the same shape
+        // as NPC weapons, so we initialise ammo here.
         ammo: natural(magazine, 0),
         damage: natural(damage, 0),
         description: description.trim(),
@@ -85,7 +85,7 @@
 
 <form onsubmit={submit} class="weapon-form">
   <div class="grid">
-    <label class="grow">
+    <label class="span-name">
       Name
       <input bind:value={name} required />
     </label>
@@ -131,12 +131,16 @@
       ROF
       <input type="number" min="1" step="1" bind:value={rof} />
     </label>
-    {#if kind === "range"}
-      <label>
-        Magazine
-        <input type="number" min="0" step="1" bind:value={magazine} />
-      </label>
-    {/if}
+    <label class:hidden={kind !== "range"} aria-hidden={kind !== "range"}>
+      Magazine
+      <input
+        type="number"
+        min="0"
+        step="1"
+        bind:value={magazine}
+        disabled={kind !== "range"}
+      />
+    </label>
     <label>
       Damage (d6)
       <input type="number" min="0" step="1" bind:value={damage} />
@@ -164,39 +168,58 @@
     margin: 0;
   }
 
+  /* Row 1: Name (full width). Row 2: Kind | Type | Quality | ROF |
+     Max Magazine | Damage — all six on one line. The Max Magazine cell
+     keeps its slot but visibility:hidden when the weapon is melee, so
+     widths never shift across kind switches. */
   .grid {
     display: grid;
-    grid-template-columns: 2fr 1fr 2fr 1.4fr repeat(3, minmax(80px, 1fr));
-    gap: 0.5rem;
+    grid-template-columns:
+      minmax(5.5rem, 0.7fr) /* Kind */
+      minmax(7rem, 1.2fr) /* Type */
+      minmax(7.5rem, 1.1fr) /* Quality */
+      minmax(4rem, 0.5fr) /* ROF */
+      minmax(6rem, 0.8fr) /* Max Magazine */
+      minmax(5rem, 0.6fr); /* Damage */
+    gap: 0.6rem 0.5rem;
+  }
+  .span-name {
+    grid-column: 1 / -1;
+  }
+  .hidden {
+    visibility: hidden;
+  }
+
+  @media (max-width: 760px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .span-name {
+      grid-column: 1 / -1;
+    }
+  }
+  @media (max-width: 480px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   /* The closed select takes the bg colour of the currently-selected
-     quality. Text colour is always inherited (default), per spec. */
-  .quality-select.quality-bg-excellent {
-    background-color: #d4a017;
-    color: #000;
-  }
-  .quality-select.quality-bg-poor {
-    background-color: var(--accent);
-    color: #fff;
-  }
-  .quality-select.quality-bg-normal {
-    background-color: #6b6b75;
-    color: #fff;
-  }
-  /* Each option always renders with its own quality colour, regardless
-     of which one is currently selected. */
+     quality. Tokens only — no raw hex. */
+  .quality-select.quality-bg-excellent,
   .quality-select option.quality-opt-excellent {
-    background-color: #d4a017;
-    color: #000;
+    background-color: var(--hazard);
+    color: var(--bg);
   }
+  .quality-select.quality-bg-poor,
   .quality-select option.quality-opt-poor {
     background-color: var(--accent);
-    color: #fff;
+    color: var(--text);
   }
+  .quality-select.quality-bg-normal,
   .quality-select option.quality-opt-normal {
-    background-color: #6b6b75;
-    color: #fff;
+    background-color: var(--text-faint);
+    color: var(--text);
   }
 
   label {

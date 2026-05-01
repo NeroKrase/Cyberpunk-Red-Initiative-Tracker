@@ -278,9 +278,15 @@
     padding: 0.65rem 0;
     border-bottom: 1px solid var(--border);
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.6rem;
     flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+  /* Push the whole right-hand cluster (meta + buttons) to the end as a
+     unit so wraps don't strand `margin-left: auto` on a single child. */
+  .list :global(li > .meta) {
+    margin-left: auto;
   }
   .list :global(li:last-child) {
     border-bottom: none;
@@ -325,7 +331,6 @@
     font-size: 0.78em;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    margin-left: auto;
   }
 
   .del {

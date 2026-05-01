@@ -369,20 +369,19 @@
 
   .kind-tag {
     padding: 0.1rem 0.4rem;
-    border-radius: 3px;
     font-size: 0.7em;
     font-weight: 600;
     letter-spacing: 0.5px;
   }
 
   .kind-tag.pc {
-    background: #1f4f70;
-    color: #aad8ff;
+    background: color-mix(in srgb, var(--ncpd) 35%, transparent);
+    color: var(--ncpd-bright);
   }
 
   .kind-tag.enemy {
-    background: #5a2030;
-    color: #ffb5c0;
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+    color: var(--accent-bright);
   }
 
   .wound-slot {
@@ -449,15 +448,16 @@
     opacity: 1;
   }
 
+  /* Push the right-side action cluster (damage form + delete) as a
+     group; only the damage form anchors to auto so the delete button
+     sits adjacent to it instead of fighting for the same edge. */
   .damage-form {
     display: inline-flex;
     gap: 0.2rem;
-    margin: 0;
-    margin-left: auto;
+    margin: 0 0 0 auto;
   }
 
   .del {
-    margin-left: auto;
     border: 1px solid transparent;
     color: var(--text-faint);
     padding: 0.05rem 0.45rem;
@@ -485,8 +485,7 @@
     gap: 0.75rem;
     padding: 0.2rem 0.6rem;
     margin: 0;
-    border: 1px solid #444;
-    border-radius: 4px;
+    border: 1px solid var(--border-strong);
   }
 
   .kind-picker label {
@@ -499,9 +498,8 @@
   select {
     font: inherit;
     padding: 0.4rem 0.6rem;
-    background: #2a2a2a;
+    background: var(--surface-2);
     color: inherit;
-    border: 1px solid #444;
-    border-radius: 4px;
+    border: 1px solid var(--border-strong);
   }
 </style>
