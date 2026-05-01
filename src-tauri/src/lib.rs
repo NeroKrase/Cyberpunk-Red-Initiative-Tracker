@@ -1,7 +1,6 @@
+use std::env;
 use std::fs;
 use std::path::PathBuf;
-
-use tauri::Manager;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -9,18 +8,14 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-/// Save a generated NPC card image into the application's cards directory.
+/// Save a generated NPC card image into a `cards/` directory placed next
+/// to the running executable.
 ///
-/// Files land in `<app_data_dir>/cards/<filename>`, where `app_data_dir` is
-/// the per-user data directory chosen by Tauri for this bundle. The
-/// directory is created on demand. Returns the absolute path of the
+/// Files land in `<exe_dir>/cards/<filename>`. The directory is created
+/// on demand if it doesn't exist. Returns the absolute path of the
 /// written file so the UI can show it in a notification.
 #[tauri::command]
-fn save_card(
-    app: tauri::AppHandle,
-    filename: String,
-    bytes: Vec<u8>,
-) -> Result<String, String> {
+fn save_card(filename: String, bytes: Vec<u8>) -> Result<String, String> {
     if filename.is_empty() {
         return Err("filename is empty".into());
     }
@@ -32,11 +27,13 @@ fn save_card(
         return Err(format!("invalid filename: {filename}"));
     }
 
-    let data_dir: PathBuf = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("resolve app_data_dir: {e}"))?;
-    let cards_dir = data_dir.join("cards");
+    let exe_path = env::current_exe()
+        .map_err(|e| format!("resolve current exe: {e}"))?;
+    let exe_dir: PathBuf = exe_path
+        .parent()
+        .ok_or_else(|| "current exe has no parent dir".to_string())?
+        .to_path_buf();
+    let cards_dir = exe_dir.join("cards");
     fs::create_dir_all(&cards_dir)
         .map_err(|e| format!("create {}: {e}", cards_dir.display()))?;
 

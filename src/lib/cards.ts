@@ -9,8 +9,9 @@ import {
 import { notify } from "./notification-queue.svelte";
 
 // Detects whether the page is running inside the Tauri webview shell.
-// In the shell we save into the app data directory; in a plain browser
-// (dev preview, vite preview, etc.) we fall back to a normal download.
+// In the shell we save into a `cards/` folder beside the executable; in
+// a plain browser (dev preview, vite preview, etc.) we fall back to a
+// normal download.
 function isTauri(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -113,7 +114,7 @@ function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
 }
 
 // Sends the PNG bytes to the Rust `save_card` command which writes them
-// into `<app_data_dir>/cards/<filename>` and returns the absolute path.
+// into `<exe_dir>/cards/<filename>` and returns the absolute path.
 async function saveBlobViaTauri(blob: Blob, filename: string): Promise<string> {
   // Lazy-load the API so a vite/browser build that never enters this branch
   // doesn't pay the bundle cost.
