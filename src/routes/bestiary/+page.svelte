@@ -21,7 +21,7 @@
       title: "Delete record",
       message: `Delete record "${name}"?`,
     });
-    if (ok) deleteTemplate(id);
+    if (ok) await deleteTemplate(id);
   }
 
   async function removeWeapon(id: string, name: string) {
@@ -29,7 +29,7 @@
       title: "Delete weapon",
       message: `Delete weapon "${name}"?`,
     });
-    if (ok) deleteWeaponTemplate(id);
+    if (ok) await deleteWeaponTemplate(id);
   }
 
   async function generateCard(template: EnemyTemplate, size: CardSize) {
@@ -110,7 +110,7 @@
             <button
               type="button"
               class="del"
-              onclick={() => duplicateTemplate(template.id)}
+              onclick={() => void duplicateTemplate(template.id)}
               aria-label="Duplicate {template.name}"
             >
               <svg
@@ -159,7 +159,7 @@
             <button
               type="button"
               class="del"
-              onclick={() => duplicateWeaponTemplate(weapon.id)}
+              onclick={() => void duplicateWeaponTemplate(weapon.id)}
               aria-label="Duplicate {weapon.name}"
             >
               <svg

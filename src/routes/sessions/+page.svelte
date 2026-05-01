@@ -11,12 +11,12 @@
 
   let sessionName = $state("");
 
-  function submitSession(event: Event) {
+  async function submitSession(event: Event) {
     event.preventDefault();
     const trimmed = sessionName.trim();
     if (!trimmed) return;
-    createSession(trimmed);
     sessionName = "";
+    await createSession(trimmed);
   }
 
   async function removeSession(id: string, name: string) {
@@ -24,7 +24,7 @@
       title: "Delete session",
       message: `Delete session "${name}"? All its encounters will be lost.`,
     });
-    if (ok) deleteSession(id);
+    if (ok) await deleteSession(id);
   }
 
   async function editSession(id: string, name: string) {
@@ -33,7 +33,7 @@
       label: "Callsign",
       initialValue: name,
     });
-    if (next && next !== name) renameSession(id, next);
+    if (next && next !== name) await renameSession(id, next);
   }
 </script>
 
@@ -85,7 +85,7 @@
           <button
             type="button"
             class="icon-btn"
-            onclick={() => duplicateSession(session.id)}
+            onclick={() => void duplicateSession(session.id)}
             aria-label="Duplicate {session.name}"
           >
             <svg

@@ -14,12 +14,12 @@
 
   let name = $state("");
 
-  function submit(event: Event) {
+  async function submit(event: Event) {
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed || !session) return;
-    createEncounter(session.id, trimmed);
     name = "";
+    await createEncounter(session.id, trimmed);
   }
 
   async function removeEncounter(encounterId: string, encounterName: string) {
@@ -28,7 +28,7 @@
       title: "Delete encounter",
       message: `Delete encounter "${encounterName}"?`,
     });
-    if (ok) deleteEncounter(session.id, encounterId);
+    if (ok) await deleteEncounter(session.id, encounterId);
   }
 
   async function editEncounter(encounterId: string, encounterName: string) {
@@ -38,7 +38,7 @@
       label: "Name",
       initialValue: encounterName,
     });
-    if (next && next !== encounterName) renameEncounter(session.id, encounterId, next);
+    if (next && next !== encounterName) await renameEncounter(session.id, encounterId, next);
   }
 </script>
 
@@ -89,7 +89,7 @@
           <button
             type="button"
             class="icon-btn"
-            onclick={() => session && duplicateEncounter(session.id, encounter.id)}
+            onclick={() => void (session && duplicateEncounter(session.id, encounter.id))}
             aria-label="Duplicate {encounter.name}"
           >
             <svg

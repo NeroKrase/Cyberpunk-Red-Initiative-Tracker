@@ -8,9 +8,9 @@
 
   const template = $derived(getTemplate(page.params.templateId!));
 
-  function onSave(data: EnemyStatBlock) {
+  async function onSave(data: EnemyStatBlock) {
     if (!template) return;
-    updateTemplate(template.id, data);
+    await updateTemplate(template.id, data);
     goto("/bestiary");
   }
 
