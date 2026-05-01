@@ -1,38 +1,32 @@
-import type Database from "@tauri-apps/plugin-sql";
+import type { EnemyTemplate, Session, WeaponTemplate } from "../types";
 import { dbReady } from "./db";
-import { importLegacyIfNeeded } from "./import-legacy";
-import { load as persistLoad, save as persistSave, type StoreData } from "./persist";
+import { sqlLoadAll } from "./sql-read";
 
-export const store = $state<StoreData>(persistLoad());
+export type StoreData = {
+  sessions: Session[];
+  templates: EnemyTemplate[];
+  weaponTemplates: WeaponTemplate[];
+};
 
-export function save() {
-  persistSave({
-    sessions: store.sessions,
-    templates: store.templates,
-    weaponTemplates: store.weaponTemplates,
-  });
-}
+// Boot with empty arrays; hydrate asynchronously from SQLite once the
+// connection resolves. UI reads stay synchronous against this $state
+// mirror; the brief empty window before hydration is invisible in
+// normal use (sub-100ms on cold boot for typical save sizes).
+export const store = $state<StoreData>({
+  sessions: [],
+  templates: [],
+  weaponTemplates: [],
+});
 
-// Resolves with the live Database (or null in SSR / non-Tauri / failed
-// import) once the one-shot legacy import has settled. Mutator
-// dual-writes await this so they don't race the importer's insert
-// loop on first boot.
-export const dbWriteReady: Promise<Database | null> = (async () => {
+(async () => {
   const db = await dbReady;
-  if (!db) return null;
+  if (!db) return;
   try {
-    // Shallow array copies so mutations during the import don't shift
-    // the iteration set out from under the importer; new rows added
-    // after this snapshot are persisted by the mutator's own dual-write
-    // after dbWriteReady resolves.
-    await importLegacyIfNeeded(db, {
-      sessions: [...store.sessions],
-      templates: [...store.templates],
-      weaponTemplates: [...store.weaponTemplates],
-    });
-    return db;
+    const data = await sqlLoadAll(db);
+    store.sessions = data.sessions;
+    store.templates = data.templates;
+    store.weaponTemplates = data.weaponTemplates;
   } catch (err) {
-    console.error("Legacy import failed; SQLite writes disabled this session", err);
-    return null;
+    console.error("Failed to hydrate store from SQLite", err);
   }
 })();

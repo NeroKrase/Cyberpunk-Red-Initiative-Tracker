@@ -6,7 +6,8 @@ import type {
   Session,
 } from "../types";
 import { isRange, maxHpFromStats } from "../types";
-import { dbWriteReady, store, save } from "./state.svelte";
+import { dbReady } from "./db";
+import { store } from "./state.svelte";
 import { cloneStatBlock, getTemplate } from "./templates.svelte";
 import {
   runTx,
@@ -32,8 +33,7 @@ import {
 export async function createSession(name: string): Promise<Session> {
   const session: Session = { id: crypto.randomUUID(), name, encounters: [] };
   store.sessions.push(session);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlInsertSession(db, session);
   return session;
 }
@@ -46,8 +46,7 @@ export async function deleteSession(id: string): Promise<void> {
   const idx = store.sessions.findIndex((s) => s.id === id);
   if (idx === -1) return;
   store.sessions.splice(idx, 1);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlDeleteSession(db, id);
 }
 
@@ -55,8 +54,7 @@ export async function renameSession(id: string, name: string): Promise<void> {
   const session = getSession(id);
   if (!session) return;
   session.name = name;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlUpdateSessionName(db, id, name);
 }
 
@@ -72,8 +70,7 @@ export async function duplicateSession(id: string): Promise<Session | undefined>
   }
   const idx = store.sessions.indexOf(session);
   store.sessions.splice(idx + 1, 0, clone);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   // Sessions has no position column at the top level, so a deep insert
   // of the clone (with its fresh encounter/combatant rows) is enough —
   // no sibling renumber needed.
@@ -99,8 +96,7 @@ export async function createEncounter(
   const encounter: Encounter = { id: crypto.randomUUID(), name, combatants: [] };
   session.encounters.push(encounter);
   const position = session.encounters.length - 1;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlInsertEncounterDeep(db, sessionId, encounter, position);
   return encounter;
 }
@@ -118,8 +114,7 @@ export async function deleteEncounter(
   const idx = session.encounters.findIndex((e) => e.id === encounterId);
   if (idx === -1) return;
   session.encounters.splice(idx, 1);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) {
     await runTx(db, async (tx) => {
       await sqlDeleteEncounter(tx, encounterId);
@@ -136,8 +131,7 @@ export async function renameEncounter(
   const encounter = getEncounter(sessionId, encounterId);
   if (!encounter) return;
   encounter.name = name;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlUpdateEncounterName(db, encounterId, name);
 }
 
@@ -154,8 +148,7 @@ export async function duplicateEncounter(
   for (const c of clone.combatants) reassignCombatantIds(c);
   const idx = session.encounters.indexOf(encounter);
   session.encounters.splice(idx + 1, 0, clone);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) {
     // Insert clone with its in-memory position, then renumber siblings
     // so positions match the spliced order (clone at idx+1 pushes
@@ -223,8 +216,7 @@ export async function addCombatant(
   }
   encounter.combatants.push(combatant);
   const position = encounter.combatants.length - 1;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await runTx(db, (tx) => sqlInsertCombatant(tx, encounterId, combatant, position));
   return combatant;
 }
@@ -240,8 +232,7 @@ export async function removeCombatant(
   if (idx === -1) return;
   const removed = encounter.combatants[idx];
   encounter.combatants.splice(idx, 1);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) {
     await runTx(db, async (tx) => {
       await sqlDeleteCombatant(tx, removed.kind, combatantId);
@@ -265,8 +256,7 @@ export async function updateCombatant(
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant) return;
   Object.assign(combatant, patch);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (!db) return;
   if (combatant.kind === "pc") {
     // PCs have no hp column; ignore it if present.
@@ -289,8 +279,7 @@ export async function updateArmorSp(
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant || combatant.kind !== "enemy") return;
   combatant.armor[location].sp = sp;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlUpdateArmorSp(db, combatantId, location, sp);
 }
 
@@ -306,8 +295,7 @@ export async function updateWeaponAmmo(
   const weapon = combatant.weapons.find((w) => w.id === weaponId);
   if (!weapon || !isRange(weapon)) return;
   weapon.ammo = ammo;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlUpdateRangeWeaponAmmo(db, weaponId, ammo);
 }
 
@@ -333,7 +321,6 @@ export async function applyDamage(
     enemy.hp -= damage - sp;
   }
   if (sp > 0) enemy.armor[location].sp = sp - 1;
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlApplyDamage(db, combatantId, enemy.hp, location, enemy.armor[location].sp);
 }
