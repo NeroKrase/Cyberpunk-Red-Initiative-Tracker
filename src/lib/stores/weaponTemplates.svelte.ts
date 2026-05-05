@@ -1,6 +1,6 @@
 import type { WeaponTemplate } from "../types";
 import { dbReady } from "./db";
-import { store } from "./state.svelte";
+import { store, storeReady } from "./state.svelte";
 import {
   runTx,
   sqlDeleteWeaponTemplate,
@@ -20,6 +20,7 @@ export type WeaponTemplateInput = DistributiveOmit<WeaponTemplate, "id">;
 export async function createWeaponTemplate(
   data: WeaponTemplateInput,
 ): Promise<WeaponTemplate> {
+  await storeReady;
   const id = crypto.randomUUID();
   // Spread + id over a discriminated-union input loses narrowing in TS, so
   // assert the resulting shape — the caller already chose a kind in `data`.
@@ -38,6 +39,7 @@ export async function updateWeaponTemplate(
   id: string,
   data: WeaponTemplateInput,
 ): Promise<void> {
+  await storeReady;
   const template = getWeaponTemplate(id);
   if (!template) return;
   Object.assign(template, data);
@@ -48,6 +50,7 @@ export async function updateWeaponTemplate(
 }
 
 export async function deleteWeaponTemplate(id: string): Promise<void> {
+  await storeReady;
   const idx = store.weaponTemplates.findIndex((t) => t.id === id);
   if (idx === -1) return;
   store.weaponTemplates.splice(idx, 1);
@@ -58,6 +61,7 @@ export async function deleteWeaponTemplate(id: string): Promise<void> {
 export async function duplicateWeaponTemplate(
   id: string,
 ): Promise<WeaponTemplate | undefined> {
+  await storeReady;
   const template = getWeaponTemplate(id);
   if (!template) return;
   const clone: WeaponTemplate = {

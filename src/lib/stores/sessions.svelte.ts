@@ -7,7 +7,7 @@ import type {
 } from "../types";
 import { isRange, maxHpFromStats } from "../types";
 import { dbReady } from "./db";
-import { store } from "./state.svelte";
+import { store, storeReady } from "./state.svelte";
 import { cloneStatBlock, getTemplate } from "./templates.svelte";
 import {
   runTx,
@@ -31,6 +31,7 @@ import {
 // ---- Sessions ----
 
 export async function createSession(name: string): Promise<Session> {
+  await storeReady;
   const session: Session = { id: crypto.randomUUID(), name, encounters: [] };
   store.sessions.push(session);
   const db = await dbReady;
@@ -43,6 +44,7 @@ export function getSession(id: string): Session | undefined {
 }
 
 export async function deleteSession(id: string): Promise<void> {
+  await storeReady;
   const idx = store.sessions.findIndex((s) => s.id === id);
   if (idx === -1) return;
   store.sessions.splice(idx, 1);
@@ -51,6 +53,7 @@ export async function deleteSession(id: string): Promise<void> {
 }
 
 export async function renameSession(id: string, name: string): Promise<void> {
+  await storeReady;
   const session = getSession(id);
   if (!session) return;
   session.name = name;
@@ -59,6 +62,7 @@ export async function renameSession(id: string, name: string): Promise<void> {
 }
 
 export async function duplicateSession(id: string): Promise<Session | undefined> {
+  await storeReady;
   const session = getSession(id);
   if (!session) return;
   const clone = JSON.parse(JSON.stringify(session)) as Session;
@@ -91,6 +95,7 @@ export async function createEncounter(
   sessionId: string,
   name: string,
 ): Promise<Encounter | undefined> {
+  await storeReady;
   const session = getSession(sessionId);
   if (!session) return;
   const encounter: Encounter = { id: crypto.randomUUID(), name, combatants: [] };
@@ -109,6 +114,7 @@ export async function deleteEncounter(
   sessionId: string,
   encounterId: string,
 ): Promise<void> {
+  await storeReady;
   const session = getSession(sessionId);
   if (!session) return;
   const idx = session.encounters.findIndex((e) => e.id === encounterId);
@@ -128,6 +134,7 @@ export async function renameEncounter(
   encounterId: string,
   name: string,
 ): Promise<void> {
+  await storeReady;
   const encounter = getEncounter(sessionId, encounterId);
   if (!encounter) return;
   encounter.name = name;
@@ -139,6 +146,7 @@ export async function duplicateEncounter(
   sessionId: string,
   encounterId: string,
 ): Promise<Encounter | undefined> {
+  await storeReady;
   const session = getSession(sessionId);
   const encounter = session?.encounters.find((e) => e.id === encounterId);
   if (!session || !encounter) return;
@@ -182,6 +190,7 @@ export async function addCombatant(
   encounterId: string,
   input: NewCombatantInput,
 ): Promise<Combatant | undefined> {
+  await storeReady;
   const encounter = getEncounter(sessionId, encounterId);
   if (!encounter) return;
 
@@ -226,6 +235,7 @@ export async function removeCombatant(
   encounterId: string,
   combatantId: string,
 ): Promise<void> {
+  await storeReady;
   const encounter = getEncounter(sessionId, encounterId);
   if (!encounter) return;
   const idx = encounter.combatants.findIndex((c) => c.id === combatantId);
@@ -253,6 +263,7 @@ export async function updateCombatant(
   combatantId: string,
   patch: CombatantPatch,
 ): Promise<void> {
+  await storeReady;
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant) return;
   Object.assign(combatant, patch);
@@ -276,6 +287,7 @@ export async function updateArmorSp(
   location: ArmorLocation,
   sp: number,
 ): Promise<void> {
+  await storeReady;
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant || combatant.kind !== "enemy") return;
   combatant.armor[location].sp = sp;
@@ -290,6 +302,7 @@ export async function updateWeaponAmmo(
   weaponId: string,
   ammo: number,
 ): Promise<void> {
+  await storeReady;
   const combatant = getCombatant(sessionId, encounterId, combatantId);
   if (!combatant || combatant.kind !== "enemy") return;
   const weapon = combatant.weapons.find((w) => w.id === weaponId);
@@ -306,6 +319,7 @@ export async function applyDamage(
   damage: number,
   location: ArmorLocation,
 ): Promise<void> {
+  await storeReady;
   console.log("Отримана шкода у локацію:", location);
 
   const combatant = getCombatant(sessionId, encounterId, combatantId);

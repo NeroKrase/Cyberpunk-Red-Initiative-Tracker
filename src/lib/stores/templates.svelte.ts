@@ -1,6 +1,6 @@
 import type { EnemyStatBlock, EnemyTemplate } from "../types";
 import { dbReady } from "./db";
-import { store } from "./state.svelte";
+import { store, storeReady } from "./state.svelte";
 import {
   runTx,
   sqlDeleteTemplate,
@@ -9,6 +9,7 @@ import {
 } from "./sql";
 
 export async function createTemplate(data: EnemyStatBlock): Promise<EnemyTemplate> {
+  await storeReady;
   const template: EnemyTemplate = { id: crypto.randomUUID(), ...cloneStatBlock(data) };
   store.templates.push(template);
   const db = await dbReady;
@@ -21,6 +22,7 @@ export function getTemplate(id: string): EnemyTemplate | undefined {
 }
 
 export async function updateTemplate(id: string, data: EnemyStatBlock): Promise<void> {
+  await storeReady;
   const template = getTemplate(id);
   if (!template) return;
   Object.assign(template, cloneStatBlock(data));
@@ -29,6 +31,7 @@ export async function updateTemplate(id: string, data: EnemyStatBlock): Promise<
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
+  await storeReady;
   const idx = store.templates.findIndex((t) => t.id === id);
   if (idx === -1) return;
   store.templates.splice(idx, 1);
@@ -37,6 +40,7 @@ export async function deleteTemplate(id: string): Promise<void> {
 }
 
 export async function duplicateTemplate(id: string): Promise<EnemyTemplate | undefined> {
+  await storeReady;
   const template = getTemplate(id);
   if (!template) return;
   const clone = JSON.parse(JSON.stringify(template)) as EnemyTemplate;

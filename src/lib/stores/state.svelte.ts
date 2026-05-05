@@ -18,9 +18,21 @@ export const store = $state<StoreData>({
   weaponTemplates: [],
 });
 
+// Resolves once the hydration pass is done — success, failure, or
+// no-db path all unblock it. Mutators await this before any in-memory
+// push/splice so a fast click on cold boot can't be overwritten by the
+// IIFE's array assignments below.
+let resolveStoreReady!: () => void;
+export const storeReady: Promise<void> = new Promise((r) => {
+  resolveStoreReady = r;
+});
+
 (async () => {
   const db = await dbReady;
-  if (!db) return;
+  if (!db) {
+    resolveStoreReady();
+    return;
+  }
   try {
     const data = await sqlLoadAll(db);
     store.sessions = data.sessions;
@@ -28,5 +40,7 @@ export const store = $state<StoreData>({
     store.weaponTemplates = data.weaponTemplates;
   } catch (err) {
     console.error("Failed to hydrate store from SQLite", err);
+  } finally {
+    resolveStoreReady();
   }
 })();
