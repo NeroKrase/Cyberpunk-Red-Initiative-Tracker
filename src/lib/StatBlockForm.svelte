@@ -632,9 +632,9 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      minmax(8rem, 1.2fr) /* Name (slimmer) */
+      minmax(12.5rem, 1.83fr) /* Name (wider) */
       5rem /* Kind */
-      minmax(10rem, 1.4fr) /* Type (wider) */
+      minmax(5.5rem, 0.77fr) /* Type (half width +10%) */
       minmax(8rem, 0.7fr) /* Qual — wide enough for "EQ — Excellent" */
       2.5rem /* C# */
       4rem /* ROF */
