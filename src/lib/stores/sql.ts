@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type Database from "@tauri-apps/plugin-sql";
 import type {
   ArmorLocation,
@@ -11,29 +12,37 @@ import type {
 } from "../types";
 import { isMelee, isRange } from "../types";
 
-// Wrap a sequence of writes in a single SQLite transaction. Throws on
-// any inner failure with ROLLBACK already issued, so callers see a
-// rejected promise without leaving the DB in a half-written state.
+// Helpers accept anything with `execute` so they work with both the real
+// Database (outside a tx) and the runTx collector (inside one).
+export type TxLike = Pick<Database, "execute">;
+
+// Run a sequence of writes inside one real SQLite transaction. The JS
+// plugin acquires a fresh pool connection per execute(), so issuing
+// BEGIN/COMMIT from JS does not bind the inner work — the transaction
+// must happen on the Rust side. We collect statements into a buffer
+// here, then ship the whole batch to the db_tx_execute command, which
+// runs them on a single sqlx Transaction (rollback-on-error via Drop).
 export async function runTx<T>(
   db: Database,
-  fn: () => Promise<T>,
+  fn: (tx: TxLike) => Promise<T>,
 ): Promise<T> {
-  await db.execute("BEGIN");
-  try {
-    const result = await fn();
-    await db.execute("COMMIT");
-    return result;
-  } catch (err) {
-    await db.execute("ROLLBACK");
-    throw err;
-  }
+  const statements: { sql: string; params: unknown[] }[] = [];
+  const tx: TxLike = {
+    execute: async (sql, bindValues) => {
+      statements.push({ sql, params: bindValues ?? [] });
+      return { rowsAffected: 0 };
+    },
+  };
+  const result = await fn(tx);
+  await invoke("db_tx_execute", { db: db.path, statements });
+  return result;
 }
 
 // ---- Sessions ----
 
 // Caller wraps in runTx for atomicity; inner helpers stay tx-free so
 // they can be composed without nesting (SQLite has no nested txs).
-export async function sqlInsertSession(db: Database, s: Session): Promise<void> {
+export async function sqlInsertSession(db: TxLike, s: Session): Promise<void> {
   await db.execute("INSERT INTO sessions (id, name) VALUES ($1, $2)", [s.id, s.name]);
   for (let i = 0; i < s.encounters.length; i++) {
     await sqlInsertEncounterDeep(db, s.id, s.encounters[i], i);
@@ -41,7 +50,7 @@ export async function sqlInsertSession(db: Database, s: Session): Promise<void> 
 }
 
 export async function sqlUpdateSessionName(
-  db: Database,
+  db: TxLike,
   id: string,
   name: string,
 ): Promise<void> {
@@ -49,14 +58,14 @@ export async function sqlUpdateSessionName(
 }
 
 // Cascades clean up encounters / players / combatants / their children.
-export async function sqlDeleteSession(db: Database, id: string): Promise<void> {
+export async function sqlDeleteSession(db: TxLike, id: string): Promise<void> {
   await db.execute("DELETE FROM sessions WHERE id = $1", [id]);
 }
 
 // ---- Encounters ----
 
 export async function sqlInsertEncounterDeep(
-  db: Database,
+  db: TxLike,
   sessionId: string,
   enc: Encounter,
   position: number,
@@ -71,21 +80,21 @@ export async function sqlInsertEncounterDeep(
 }
 
 export async function sqlUpdateEncounterName(
-  db: Database,
+  db: TxLike,
   id: string,
   name: string,
 ): Promise<void> {
   await db.execute("UPDATE encounters SET name = $1 WHERE id = $2", [name, id]);
 }
 
-export async function sqlDeleteEncounter(db: Database, id: string): Promise<void> {
+export async function sqlDeleteEncounter(db: TxLike, id: string): Promise<void> {
   await db.execute("DELETE FROM encounters WHERE id = $1", [id]);
 }
 
 // Sync encounter positions to match the in-memory order. Used after a
 // splice / delete that shifted siblings.
 export async function sqlRenumberEncounters(
-  db: Database,
+  db: TxLike,
   sessionId: string,
   encounters: Encounter[],
 ): Promise<void> {
@@ -100,7 +109,7 @@ export async function sqlRenumberEncounters(
 // ---- Combatants ----
 
 export async function sqlInsertCombatant(
-  db: Database,
+  db: TxLike,
   encounterId: string,
   c: Combatant,
   position: number,
@@ -117,7 +126,7 @@ export async function sqlInsertCombatant(
 }
 
 async function sqlInsertEnemy(
-  db: Database,
+  db: TxLike,
   encounterId: string,
   e: Enemy,
   position: number,
@@ -172,7 +181,7 @@ async function sqlInsertEnemy(
 }
 
 async function sqlInsertCombatantWeapon(
-  db: Database,
+  db: TxLike,
   combatantId: string,
   w: Weapon,
   position: number,
@@ -223,7 +232,7 @@ async function sqlInsertCombatantWeapon(
 
 // PCs and enemies live in different tables; the caller knows which.
 export async function sqlDeleteCombatant(
-  db: Database,
+  db: TxLike,
   kind: "pc" | "enemy",
   id: string,
 ): Promise<void> {
@@ -232,7 +241,7 @@ export async function sqlDeleteCombatant(
 }
 
 export async function sqlRenumberCombatants(
-  db: Database,
+  db: TxLike,
   encounterId: string,
   combatants: Combatant[],
 ): Promise<void> {
@@ -244,7 +253,7 @@ export async function sqlRenumberCombatants(
 }
 
 export async function sqlUpdatePlayerPatch(
-  db: Database,
+  db: TxLike,
   id: string,
   patch: { name?: string; initiative?: number },
 ): Promise<void> {
@@ -267,7 +276,7 @@ export async function sqlUpdatePlayerPatch(
 }
 
 export async function sqlUpdateCombatantPatch(
-  db: Database,
+  db: TxLike,
   id: string,
   patch: { name?: string; initiative?: number; hp?: number },
 ): Promise<void> {
@@ -294,7 +303,7 @@ export async function sqlUpdateCombatantPatch(
 }
 
 export async function sqlUpdateArmorSp(
-  db: Database,
+  db: TxLike,
   combatantId: string,
   location: ArmorLocation,
   sp: number,
@@ -304,7 +313,7 @@ export async function sqlUpdateArmorSp(
 }
 
 export async function sqlUpdateRangeWeaponAmmo(
-  db: Database,
+  db: TxLike,
   weaponId: string,
   ammo: number,
 ): Promise<void> {
@@ -316,7 +325,7 @@ export async function sqlUpdateRangeWeaponAmmo(
 
 // applyDamage updates both hp and the matching armor SP atomically.
 export async function sqlApplyDamage(
-  db: Database,
+  db: TxLike,
   combatantId: string,
   hp: number,
   location: ArmorLocation,
@@ -332,14 +341,14 @@ export async function sqlApplyDamage(
 // ---- Enemy templates ----
 
 export async function sqlInsertTemplate(
-  db: Database,
+  db: TxLike,
   t: EnemyTemplate,
 ): Promise<void> {
   await sqlInsertTemplateRow(db, t);
   await sqlInsertTemplateChildren(db, t);
 }
 
-async function sqlInsertTemplateRow(db: Database, t: EnemyTemplate): Promise<void> {
+async function sqlInsertTemplateRow(db: TxLike, t: EnemyTemplate): Promise<void> {
   await db.execute(
     `INSERT INTO enemy_templates (
        id, name, role, reputation,
@@ -373,7 +382,7 @@ async function sqlInsertTemplateRow(db: Database, t: EnemyTemplate): Promise<voi
 }
 
 async function sqlInsertTemplateChildren(
-  db: Database,
+  db: TxLike,
   t: EnemyTemplate,
 ): Promise<void> {
   for (let i = 0; i < t.skills.length; i++) {
@@ -433,7 +442,7 @@ async function sqlInsertTemplateChildren(
 // SQL is UPDATE the parent + DELETE children + re-INSERT children.
 // Caller wraps in runTx.
 export async function sqlUpdateTemplate(
-  db: Database,
+  db: TxLike,
   t: EnemyTemplate,
 ): Promise<void> {
   await db.execute(
@@ -472,14 +481,14 @@ export async function sqlUpdateTemplate(
   await sqlInsertTemplateChildren(db, t);
 }
 
-export async function sqlDeleteTemplate(db: Database, id: string): Promise<void> {
+export async function sqlDeleteTemplate(db: TxLike, id: string): Promise<void> {
   await db.execute("DELETE FROM enemy_templates WHERE id = $1", [id]);
 }
 
 // ---- Weapon templates (registry) ----
 
 export async function sqlInsertWeaponTemplate(
-  db: Database,
+  db: TxLike,
   w: WeaponTemplate,
 ): Promise<void> {
   if (isMelee(w)) {
@@ -514,7 +523,7 @@ export async function sqlInsertWeaponTemplate(
 // Cheap: each table holds at most one row per id and the registry is
 // small. Caller wraps in runTx for atomicity.
 export async function sqlReplaceWeaponTemplate(
-  db: Database,
+  db: TxLike,
   w: WeaponTemplate,
 ): Promise<void> {
   await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [w.id]);
@@ -524,7 +533,7 @@ export async function sqlReplaceWeaponTemplate(
 
 // We don't know which kind a registry entry is without looking it up,
 // so DELETE from both tables. At most one row matches. Caller wraps.
-export async function sqlDeleteWeaponTemplate(db: Database, id: string): Promise<void> {
+export async function sqlDeleteWeaponTemplate(db: TxLike, id: string): Promise<void> {
   await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [id]);
   await db.execute("DELETE FROM range_weapon_templates WHERE id = $1", [id]);
 }

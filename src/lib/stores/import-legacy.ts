@@ -24,17 +24,17 @@ export async function importLegacyIfNeeded(
   );
   if (existing.length > 0) return;
 
-  await runTx(db, async () => {
+  await runTx(db, async (tx) => {
     for (const s of snapshot.sessions) {
-      await sqlInsertSession(db, s);
+      await sqlInsertSession(tx, s);
     }
     for (const t of snapshot.templates) {
-      await sqlInsertTemplate(db, t);
+      await sqlInsertTemplate(tx, t);
     }
     for (const w of snapshot.weaponTemplates) {
-      await sqlInsertWeaponTemplate(db, w);
+      await sqlInsertWeaponTemplate(tx, w);
     }
-    await db.execute("INSERT INTO meta (key, value) VALUES ($1, $2)", [
+    await tx.execute("INSERT INTO meta (key, value) VALUES ($1, $2)", [
       SENTINEL_KEY,
       "true",
     ]);

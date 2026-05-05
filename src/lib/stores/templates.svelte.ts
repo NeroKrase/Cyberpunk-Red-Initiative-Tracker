@@ -12,7 +12,7 @@ export async function createTemplate(data: EnemyStatBlock): Promise<EnemyTemplat
   store.templates.push(template);
   save();
   const db = await dbWriteReady;
-  if (db) await runTx(db, () => sqlInsertTemplate(db, template));
+  if (db) await runTx(db, (tx) => sqlInsertTemplate(tx, template));
   return template;
 }
 
@@ -26,7 +26,7 @@ export async function updateTemplate(id: string, data: EnemyStatBlock): Promise<
   Object.assign(template, cloneStatBlock(data));
   save();
   const db = await dbWriteReady;
-  if (db) await runTx(db, () => sqlUpdateTemplate(db, template));
+  if (db) await runTx(db, (tx) => sqlUpdateTemplate(tx, template));
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
@@ -50,7 +50,7 @@ export async function duplicateTemplate(id: string): Promise<EnemyTemplate | und
   store.templates.splice(idx + 1, 0, clone);
   save();
   const db = await dbWriteReady;
-  if (db) await runTx(db, () => sqlInsertTemplate(db, clone));
+  if (db) await runTx(db, (tx) => sqlInsertTemplate(tx, clone));
   return clone;
 }
 

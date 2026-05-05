@@ -77,7 +77,7 @@ export async function duplicateSession(id: string): Promise<Session | undefined>
   // Sessions has no position column at the top level, so a deep insert
   // of the clone (with its fresh encounter/combatant rows) is enough —
   // no sibling renumber needed.
-  if (db) await runTx(db, () => sqlInsertSession(db, clone));
+  if (db) await runTx(db, (tx) => sqlInsertSession(tx, clone));
   return clone;
 }
 
@@ -121,9 +121,9 @@ export async function deleteEncounter(
   save();
   const db = await dbWriteReady;
   if (db) {
-    await runTx(db, async () => {
-      await sqlDeleteEncounter(db, encounterId);
-      await sqlRenumberEncounters(db, sessionId, session.encounters);
+    await runTx(db, async (tx) => {
+      await sqlDeleteEncounter(tx, encounterId);
+      await sqlRenumberEncounters(tx, sessionId, session.encounters);
     });
   }
 }
@@ -160,9 +160,9 @@ export async function duplicateEncounter(
     // Insert clone with its in-memory position, then renumber siblings
     // so positions match the spliced order (clone at idx+1 pushes
     // everyone after it down by one).
-    await runTx(db, async () => {
-      await sqlInsertEncounterDeep(db, sessionId, clone, idx + 1);
-      await sqlRenumberEncounters(db, sessionId, session.encounters);
+    await runTx(db, async (tx) => {
+      await sqlInsertEncounterDeep(tx, sessionId, clone, idx + 1);
+      await sqlRenumberEncounters(tx, sessionId, session.encounters);
     });
   }
   return clone;
@@ -225,7 +225,7 @@ export async function addCombatant(
   const position = encounter.combatants.length - 1;
   save();
   const db = await dbWriteReady;
-  if (db) await runTx(db, () => sqlInsertCombatant(db, encounterId, combatant, position));
+  if (db) await runTx(db, (tx) => sqlInsertCombatant(tx, encounterId, combatant, position));
   return combatant;
 }
 
@@ -243,9 +243,9 @@ export async function removeCombatant(
   save();
   const db = await dbWriteReady;
   if (db) {
-    await runTx(db, async () => {
-      await sqlDeleteCombatant(db, removed.kind, combatantId);
-      await sqlRenumberCombatants(db, encounterId, encounter.combatants);
+    await runTx(db, async (tx) => {
+      await sqlDeleteCombatant(tx, removed.kind, combatantId);
+      await sqlRenumberCombatants(tx, encounterId, encounter.combatants);
     });
   }
 }

@@ -45,7 +45,7 @@ export async function updateWeaponTemplate(
   const db = await dbWriteReady;
   // Kind may have changed; sqlReplaceWeaponTemplate clears both kind
   // tables before inserting into the right one.
-  if (db) await runTx(db, () => sqlReplaceWeaponTemplate(db, template));
+  if (db) await runTx(db, (tx) => sqlReplaceWeaponTemplate(tx, template));
 }
 
 export async function deleteWeaponTemplate(id: string): Promise<void> {
@@ -54,7 +54,7 @@ export async function deleteWeaponTemplate(id: string): Promise<void> {
   store.weaponTemplates.splice(idx, 1);
   save();
   const db = await dbWriteReady;
-  if (db) await runTx(db, () => sqlDeleteWeaponTemplate(db, id));
+  if (db) await runTx(db, (tx) => sqlDeleteWeaponTemplate(tx, id));
 }
 
 export async function duplicateWeaponTemplate(
