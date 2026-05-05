@@ -325,17 +325,14 @@ export async function applyDamage(
 
   const enemy = combatant as Enemy;
   const sp = enemy.armor[location].sp;
+  if (damage <= sp) return;
 
-  if (damage > sp) {
-    // Перевіряємо, чи влучання прийшлося в голову
-    if (location === "head") {
-      enemy.hp -= (damage - sp) * 2;
-    } else {
-      enemy.hp -= damage - sp;
-    }
-
-    if (sp > 0) enemy.armor[location].sp = sp - 1;
+  if (location === "head") {
+    enemy.hp -= (damage - sp) * 2;
+  } else {
+    enemy.hp -= damage - sp;
   }
+  if (sp > 0) enemy.armor[location].sp = sp - 1;
   save();
   const db = await dbWriteReady;
   if (db) await sqlApplyDamage(db, combatantId, enemy.hp, location, enemy.armor[location].sp);
