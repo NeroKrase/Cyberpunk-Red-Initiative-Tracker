@@ -1,4 +1,9 @@
-import type { EnemyTemplate, Session, WeaponTemplate } from "../types";
+import type {
+  EnemyTemplate,
+  NetArchitecture,
+  Session,
+  WeaponTemplate,
+} from "../types";
 import { dbReady } from "./db";
 import { sqlLoadAll } from "./sql-read";
 
@@ -6,6 +11,7 @@ export type StoreData = {
   sessions: Session[];
   templates: EnemyTemplate[];
   weaponTemplates: WeaponTemplate[];
+  netArchitectures: NetArchitecture[];
 };
 
 // Boot with empty arrays; hydrate asynchronously from SQLite once the
@@ -16,6 +22,7 @@ export const store = $state<StoreData>({
   sessions: [],
   templates: [],
   weaponTemplates: [],
+  netArchitectures: [],
 });
 
 // Resolves once the hydration pass is done — success, failure, or
@@ -38,6 +45,7 @@ export const storeReady: Promise<void> = new Promise((r) => {
     store.sessions = data.sessions;
     store.templates = data.templates;
     store.weaponTemplates = data.weaponTemplates;
+    store.netArchitectures = data.netArchitectures;
   } catch (err) {
     console.error("Failed to hydrate store from SQLite", err);
   } finally {

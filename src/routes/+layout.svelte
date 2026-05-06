@@ -17,7 +17,7 @@
 
 <style>
   main {
-    max-width: 1100px;
+    max-width: var(--page-max-width, 1100px);
     margin: 0 auto;
     padding: 2.5rem 1.5rem 3rem;
   }

@@ -5,6 +5,10 @@ import type {
   Enemy,
   EnemyTemplate,
   MeleeWeapon,
+  NetArchitecture,
+  NetDemon,
+  NetFloor,
+  NetFloorType,
   PlayerCharacter,
   RangeWeapon,
   Session,
@@ -15,10 +19,12 @@ import type {
   WeaponTemplate,
 } from "../types";
 
+
 export type LoadedStore = {
   sessions: Session[];
   templates: EnemyTemplate[];
   weaponTemplates: WeaponTemplate[];
+  netArchitectures: NetArchitecture[];
 };
 
 // Read every table, group children by parent id, assemble the in-memory
@@ -39,6 +45,9 @@ export async function sqlLoadAll(db: Database): Promise<LoadedStore> {
     templateRangeRows,
     meleeRegistryRows,
     rangeRegistryRows,
+    netArchRows,
+    netFloorRows,
+    netDemonRows,
   ] = await Promise.all([
     db.select<SessionRow[]>("SELECT * FROM sessions"),
     db.select<EncounterRow[]>("SELECT * FROM encounters ORDER BY session_id, position"),
@@ -65,6 +74,13 @@ export async function sqlLoadAll(db: Database): Promise<LoadedStore> {
     ),
     db.select<MeleeRegistryRow[]>("SELECT * FROM melee_weapon_templates"),
     db.select<RangeRegistryRow[]>("SELECT * FROM range_weapon_templates"),
+    db.select<NetArchitectureRow[]>("SELECT * FROM net_architectures"),
+    db.select<NetFloorRow[]>(
+      "SELECT * FROM net_floors ORDER BY architecture_id, position",
+    ),
+    db.select<NetDemonRow[]>(
+      "SELECT * FROM net_demons ORDER BY architecture_id, position",
+    ),
   ]);
 
   const encByS = groupBy(encounterRows, (e) => e.session_id);
@@ -95,7 +111,35 @@ export async function sqlLoadAll(db: Database): Promise<LoadedStore> {
     ...rangeRegistryRows.map(rangeFromRegistryRow),
   ];
 
-  return { sessions, templates, weaponTemplates };
+  const floorsByArch = groupBy(netFloorRows, (f) => f.architecture_id);
+  const demonsByArch = groupBy(netDemonRows, (d) => d.architecture_id);
+  const netArchitectures: NetArchitecture[] = netArchRows.map((r) =>
+    netArchitectureFromRow(r, demonsByArch, floorsByArch),
+  );
+
+  return { sessions, templates, weaponTemplates, netArchitectures };
+}
+
+function netArchitectureFromRow(
+  r: NetArchitectureRow,
+  demonsByArch: Map<string, NetDemonRow[]>,
+  floorsByArch: Map<string, NetFloorRow[]>,
+): NetArchitecture {
+  const demons: NetDemon[] = (demonsByArch.get(r.id) ?? []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    rez: d.rez,
+    interfaceLevel: d.interface,
+    netActions: d.net_actions,
+    combatNumber: d.combat_number,
+  }));
+  const floors: NetFloor[] = (floorsByArch.get(r.id) ?? []).map((f) => ({
+    id: f.id,
+    type: f.type as NetFloorType,
+    description: f.description,
+    dv: f.dv,
+  }));
+  return { id: r.id, name: r.name, demons, floors };
 }
 
 // ---- Assembly helpers ----
@@ -513,4 +557,29 @@ type RangeRegistryRow = {
   description: string;
   ammo: number;
   magazine: number;
+};
+
+type NetArchitectureRow = {
+  id: string;
+  name: string;
+};
+
+type NetDemonRow = {
+  id: string;
+  architecture_id: string;
+  name: string;
+  rez: number;
+  interface: number;
+  net_actions: number;
+  combat_number: number;
+  position: number;
+};
+
+type NetFloorRow = {
+  id: string;
+  architecture_id: string;
+  type: string;
+  description: string;
+  dv: number | null;
+  position: number;
 };
