@@ -28,10 +28,10 @@
     combatant.skills.filter((s) => s.level + s.mod !== 0),
   );
 
-  function onAmmoChange(weaponId: string, value: string) {
+  async function onAmmoChange(weaponId: string, value: string) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return;
-    updateWeaponAmmo(sessionId, encounterId, combatant.id, weaponId, parsed);
+    await updateWeaponAmmo(sessionId, encounterId, combatant.id, weaponId, parsed);
   }
 </script>
 

@@ -39,53 +39,56 @@
     else expanded.add(id);
   }
 
-  function submit(event: Event) {
+  async function submit(event: Event) {
     event.preventDefault();
     if (initiative === "" || !session || !encounter) return;
+
+    const init = Number(initiative);
+    initiative = "";
 
     if (kind === "pc") {
       const trimmed = name.trim();
       if (!trimmed) return;
-      addCombatant(session.id, encounter.id, {
+      name = "";
+      await addCombatant(session.id, encounter.id, {
         kind: "pc",
         name: trimmed,
-        initiative: Number(initiative),
+        initiative: init,
       });
-      name = "";
     } else {
       if (!templateId) return;
-      addCombatant(session.id, encounter.id, {
+      const override = nameOverride.trim() || undefined;
+      nameOverride = "";
+      await addCombatant(session.id, encounter.id, {
         kind: "enemy",
         templateId,
-        initiative: Number(initiative),
-        nameOverride: nameOverride.trim() || undefined,
+        initiative: init,
+        nameOverride: override,
       });
-      nameOverride = "";
     }
-    initiative = "";
   }
 
-  function onFieldChange(
+  async function onFieldChange(
     combatantId: string,
     field: "initiative" | "hp",
     value: string,
   ) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || !session || !encounter) return;
-    updateCombatant(session.id, encounter.id, combatantId, { [field]: parsed });
+    await updateCombatant(session.id, encounter.id, combatantId, { [field]: parsed });
   }
 
-  function onArmorSpChange(
+  async function onArmorSpChange(
     combatantId: string,
     location: ArmorLocation,
     value: string,
   ) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || !session || !encounter) return;
-    updateArmorSp(session.id, encounter.id, combatantId, location, parsed);
+    await updateArmorSp(session.id, encounter.id, combatantId, location, parsed);
   }
 
-  function submitDamage(event: SubmitEvent, combatantId: string) {
+  async function submitDamage(event: SubmitEvent, combatantId: string) {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const dmgInput = form.elements.namedItem("damage") as HTMLInputElement;
@@ -93,8 +96,8 @@
     const dmg = Number(dmgInput.value);
     const location = locInput.value as ArmorLocation;
     if (!Number.isFinite(dmg) || dmg <= 0 || !session || !encounter) return;
-    applyDamage(session.id, encounter.id, combatantId, dmg, location);
     dmgInput.value = "";
+    await applyDamage(session.id, encounter.id, combatantId, dmg, location);
   }
 
   async function deleteCombatant(combatantId: string, combatantName: string) {
@@ -106,7 +109,7 @@
     });
     if (!ok) return;
     expanded.delete(combatantId);
-    removeCombatant(session.id, encounter.id, combatantId);
+    await removeCombatant(session.id, encounter.id, combatantId);
   }
 </script>
 

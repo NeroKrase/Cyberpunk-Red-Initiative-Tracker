@@ -11,9 +11,9 @@
 
   const template = $derived(getWeaponTemplate(page.params.weaponId!));
 
-  function onSave(data: WeaponTemplateInput) {
+  async function onSave(data: WeaponTemplateInput) {
     if (!template) return;
-    updateWeaponTemplate(template.id, data);
+    await updateWeaponTemplate(template.id, data);
     goto("/bestiary?tab=weapons");
   }
 

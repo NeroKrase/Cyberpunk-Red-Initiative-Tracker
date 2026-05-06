@@ -4,8 +4,8 @@
   import WeaponTemplateForm from "$lib/WeaponTemplateForm.svelte";
   import { createWeaponTemplate, type WeaponTemplateInput } from "$lib/store.svelte";
 
-  function onSave(data: WeaponTemplateInput) {
-    createWeaponTemplate(data);
+  async function onSave(data: WeaponTemplateInput) {
+    await createWeaponTemplate(data);
     goto("/bestiary?tab=weapons");
   }
 

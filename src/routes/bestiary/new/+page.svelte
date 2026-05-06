@@ -5,8 +5,8 @@
   import { createTemplate } from "$lib/store.svelte";
   import type { EnemyStatBlock } from "$lib/types";
 
-  function onSave(data: EnemyStatBlock) {
-    createTemplate(data);
+  async function onSave(data: EnemyStatBlock) {
+    await createTemplate(data);
     goto("/bestiary");
   }
 
