@@ -103,8 +103,8 @@
             kind: "range",
             weaponType: template.weaponType,
             magazine: template.magazine,
-            // NPC starts out fully loaded — ammo defaults to magazine size.
-            ammo: 0,
+            // NPC starts fully loaded — ammo defaults to magazine size.
+            ammo: template.magazine,
           },
     );
   }
@@ -144,21 +144,22 @@
     }
   }
 
-  // Combat number = associated-skill total + EQ bonus. Read-only, derived
-  // from the NPC's stats/skills so it stays in sync as the user edits.
+  // Combat number = associated-skill total + EQ bonus. Memoized via
+  // $derived so we only rebuild the lookup block when stats/skills
+  // actually change, instead of once per weapon row per keystroke.
+  const combatBlock = $derived<EnemyStatBlock>({
+    name,
+    role,
+    reputation,
+    stats,
+    armor,
+    weapons,
+    skills,
+    gear,
+    cyberware,
+  });
   function combatNumber(weapon: Weapon): string {
-    const block: EnemyStatBlock = {
-      name,
-      role,
-      reputation,
-      stats,
-      armor,
-      weapons,
-      skills,
-      gear,
-      cyberware,
-    };
-    const v = weaponCombatNumber(block, weapon.weaponType, weapon.quality);
+    const v = weaponCombatNumber(combatBlock, weapon.weaponType, weapon.quality);
     return v == null ? "—" : String(v);
   }
 
@@ -198,7 +199,11 @@
           min="0"
           max={MAX_REPUTATION}
           step="1"
-          bind:value={reputation}
+          value={reputation}
+          oninput={(e) => {
+            reputation = clampReputation(Number(e.currentTarget.value));
+            e.currentTarget.value = String(reputation);
+          }}
         />
       </label>
       <div class="readonly-field" title="HP = 10 + 5 × ⌈(BODY + WILL) / 2⌉">
@@ -270,9 +275,7 @@
         <span class="weapon-head" title="Combat number">C#</span>
         <span class="weapon-head">ROF</span>
         <span class="weapon-head" title="Magazine capacity">Mag</span>
-        <span class="weapon-head" title="Ammo carried (range only)"
-          >Ammo</span
-        >
+        <span class="weapon-head" title="Ammo carried (range only)">Ammo</span>
         <span class="weapon-head">Dmg (d6)</span>
         <span></span>
         {#each weapons as weapon, i (weapon.id)}
@@ -369,7 +372,6 @@
           />
           <button
             type="button"
-            class="del"
             onclick={() => weapons.splice(i, 1)}
             aria-label="Remove {weapon.name || 'weapon'}">×</button
           >
@@ -494,7 +496,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
@@ -562,7 +564,6 @@
   }
 
   .label-text {
-    font-size: 0.85em;
     color: var(--text-muted);
   }
 
@@ -582,9 +583,14 @@
 
   .skill-grid {
     display: grid;
-    grid-template-columns: 1fr auto 4.5rem 4.5rem auto auto;
+    grid-template-columns: 1fr auto 4.5rem 4.5rem 4.5rem auto;
     gap: 0.4rem 0.6rem;
     align-items: center;
+  }
+
+  .skill-grid .num {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .skill-head,
@@ -611,7 +617,7 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-weight: 700;
-    text-align: right;
+    text-align: center;
     min-width: 1.5rem;
     color: var(--faction, var(--ncpd));
   }
@@ -626,18 +632,23 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      minmax(8rem, 1fr) /* Name */
+      minmax(12.5rem, 1.83fr) /* Name (wider) */
       5rem /* Kind */
-      minmax(6.5rem, 1fr) /* Type */
-      minmax(6.5rem, 1fr) /* Qual */
+      minmax(5.5rem, 0.77fr) /* Type (half width +10%) */
+      minmax(8rem, 0.7fr) /* Qual — wide enough for "EQ — Excellent" */
       2.5rem /* C# */
-      3.5rem /* ROF */
-      3.5rem /* Mag */
-      3.5rem /* Ammo */
-      3.5rem /* Dmg */
+      4rem /* ROF */
+      4rem /* Mag */
+      4rem /* Ammo */
+      4rem /* Dmg */
       auto; /* × */
     gap: 0.4rem 0.6rem;
     align-items: center;
+  }
+
+  .weapon-grid .num {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .kind-select,
@@ -655,32 +666,22 @@
     font-size: 0.85em;
     font-weight: 700;
   }
-  /* Closed-select bg follows the selected quality; text colour stays
-     normal (white/black depending on background contrast). */
-  .quality-select.quality-bg-excellent {
-    background-color: #d4a017;
-    color: #000;
-  }
-  .quality-select.quality-bg-poor {
-    background-color: var(--accent);
-    color: #fff;
-  }
-  .quality-select.quality-bg-normal {
-    background-color: #6b6b75;
-    color: #fff;
-  }
-  /* Options keep their own colour regardless of current selection. */
+  /* Closed-select bg follows the selected quality. Tokens only — never
+     raw hex (per STYLE.md). */
+  .quality-select.quality-bg-excellent,
   .quality-select option.quality-opt-excellent {
-    background-color: #d4a017;
-    color: #000;
+    background-color: var(--hazard);
+    color: var(--bg);
   }
+  .quality-select.quality-bg-poor,
   .quality-select option.quality-opt-poor {
     background-color: var(--accent);
-    color: #fff;
+    color: var(--text);
   }
+  .quality-select.quality-bg-normal,
   .quality-select option.quality-opt-normal {
-    background-color: #6b6b75;
-    color: #fff;
+    background-color: var(--text-faint);
+    color: var(--text);
   }
 
   .combat-num {
@@ -694,7 +695,7 @@
 
   .weapon-desc {
     grid-column: 1 / -1;
-    margin: -0.1rem 0 0.5rem;
+    margin: 0 0 0.5rem;
   }
   .weapon-desc summary {
     cursor: pointer;
@@ -726,15 +727,4 @@
     margin-top: 0.3rem;
   }
 
-  .del {
-    border: 1px solid transparent;
-    color: var(--text-faint);
-    padding: 0.05rem 0.45rem;
-    font-size: 1em;
-    line-height: 1;
-  }
-  .del:hover {
-    color: var(--accent-bright);
-    border-color: var(--accent);
-  }
 </style>

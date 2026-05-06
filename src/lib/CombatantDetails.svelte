@@ -31,8 +31,7 @@
   function onAmmoChange(weaponId: string, value: string) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return;
-    const clamped = Math.max(0, parsed);
-    updateWeaponAmmo(sessionId, encounterId, combatant.id, weaponId, clamped);
+    updateWeaponAmmo(sessionId, encounterId, combatant.id, weaponId, parsed);
   }
 </script>
 
@@ -281,7 +280,6 @@
     border: 1px solid var(--border-strong);
     border-left: 2px solid var(--accent);
     background: var(--surface-2);
-    border-bottom: 1px solid var(--border-strong);
     flex-wrap: wrap;
   }
 
@@ -351,6 +349,7 @@
     text-align: center;
     font-weight: 600;
   }
+
 
   .cell-input:focus {
     outline: 1px solid var(--accent);
