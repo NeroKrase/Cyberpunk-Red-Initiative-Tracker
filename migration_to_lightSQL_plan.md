@@ -2,11 +2,13 @@
 
 A staged migration from localStorage to a normalized SQLite schema using `tauri-plugin-sql`. Each stage is independently shippable and reversible.
 
+**Status: shipped.** All three stages landed on chained branches (`feat/sqlite-stage-a-split-stores` → `…stage-b-dual-write` → `…stage-c-cutover`). The Stage B branch was tested manually before the Stage C cutover.
+
 ## 1. Delivery process
 
-Three stages, in order. Each is a separate branch chained off the previous one (`feat/sqlite-stage-a-split-stores` → `…stage-b-dual-write` → `…stage-c-cutover`). Stage D was considered and dropped — see "Why no Stage D" below.
+Three stages, in order. Each is a separate branch chained off the previous one. Stage D was considered and dropped — see "Why no Stage D" below.
 
-### Stage A — Split the store file (pure refactor)
+### Stage A — Split the store file (pure refactor) — ✅ shipped
 
 Refactor `src/lib/store.svelte.ts` into per-entity files. Same `$state` shape, same single localStorage key, same sync API, same call sites unchanged. No persistence-format changes — that work all moves into Stage B's importer, which can read the existing combined key directly.
 
@@ -18,7 +20,7 @@ Refactor `src/lib/store.svelte.ts` into per-entity files. Same `$state` shape, s
 - `src/lib/stores/weaponTemplates.svelte.ts` — weapon template mutators.
 - `src/lib/store.svelte.ts` — becomes a barrel re-exporting from per-entity stores; `store` itself is re-exported from `state.svelte.ts` so existing UI access (`store.sessions[i]`, etc.) keeps working unchanged.
 
-### Stage B — Add SQLite, dual-write (API becomes async)
+### Stage B — Add SQLite, dual-write (API becomes async) — ✅ shipped
 
 Populate SQLite in parallel. Reads continue from the in-memory `$state`; writes hit **both** localStorage and SQLite so the DB stays current as the app is used.
 
@@ -29,18 +31,20 @@ Populate SQLite in parallel. Reads continue from the in-memory `$state`; writes 
 - `src/lib/stores/import-legacy.ts` — one-shot importer that reads the combined localStorage key, inserts into SQLite (translating denormalized JSON into the 13-table layout), and writes a sentinel to a `meta` table so it never re-runs. The localStorage key stays in place after import so the dual-write has a target until Stage C.
 - **API change in this stage (intentional):** mutators become `async` because SQLite writes are async and we will not fire-and-forget them (race conditions, lost writes on crash). Every call site of `$lib/store.svelte` (10 files) gets `await` added. Treating dual-write as the API break — instead of deferring the break to Stage C — means Stage C is purely "delete the localStorage half," with no call-site churn.
 
-### Stage C — Switch persistence to SQLite (deletion only)
+### Stage C — Switch persistence to SQLite (deletion only) — ✅ shipped
 
 - Drop `save()` calls to localStorage in every mutator; drop the initial `persist.load()` at boot.
-- Drop `persist.ts`, `migrations.ts`, and the legacy-split logic.
+- Delete `persist.ts`, `migrations.ts`, and `import-legacy.ts` (the importer's source data is gone now that persist is, and Stage B's run already populated the DB and set the sentinel).
 - Drop the dual-write branch in each mutator; the SQLite write becomes the only write.
-- Heavy-transaction mutators (each wraps writes in a single transaction):
-  - `addCombatant({kind:"enemy"})` — inserts `combatants` + N `combatant_skills` + M `combatant_melee_weapons` / `combatant_range_weapons` (cloned from the chosen template).
+- New module `src/lib/stores/sql-read.ts` — `sqlLoadAll(db)` reads all 13 tables in parallel and assembles the in-memory shape; `state.svelte.ts` boots with empty arrays and async-hydrates the `$state` mirror from this single call.
+- Heavy-transaction mutators (each wraps writes in a single transaction via `runTx`):
+  - `addCombatant({kind:"enemy"})` — inserts `combatants` + N `combatant_skills` + M `combatant_melee_weapons` / `combatant_range_weapons` (cloned from the chosen template, with reassigned ids so two enemies from the same template don't collide on PK).
   - `duplicateSession` — recursive: encounters → combatants → skills + weapons. Heaviest single mutator.
-  - `duplicateEncounter` — same recursion below the encounter.
+  - `duplicateEncounter` — same recursion below the encounter, plus a `sqlRenumberEncounters` after the splice insert.
   - `duplicateTemplate` — template + its skills + its melee + its range weapons.
-  - Any reorder mutator — renumbers `position` on N siblings (we use dense positions; sparse would defer this but complicates inserts).
-- Reads stay synchronous because they're served from the in-memory `$state` mirror, which is hydrated once at boot from a single read query per top-level entity.
+  - Reorder mutators (`deleteEncounter`, `removeCombatant`) — renumber `position` on the surviving siblings via `sqlRenumberEncounters` / `sqlRenumberCombatants` (dense positions; sparse would defer this but complicate inserts).
+- Reads stay synchronous because they're served from the in-memory `$state` mirror, which is hydrated once at boot. UI shows empty lists for the brief pre-hydration window — invisible in normal use (sub-100ms on cold boot for typical save sizes).
+- The accumulated localStorage entry under `cpr-initiative-tracker/v1` is left in place — harmless, and a useful belt-and-braces backup if the SQLite file ever needs recovery.
 
 ### Why no Stage D
 

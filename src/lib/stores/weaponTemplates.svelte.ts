@@ -1,5 +1,6 @@
 import type { WeaponTemplate } from "../types";
-import { dbWriteReady, store, save } from "./state.svelte";
+import { dbReady } from "./db";
+import { store, storeReady } from "./state.svelte";
 import {
   runTx,
   sqlDeleteWeaponTemplate,
@@ -19,13 +20,13 @@ export type WeaponTemplateInput = DistributiveOmit<WeaponTemplate, "id">;
 export async function createWeaponTemplate(
   data: WeaponTemplateInput,
 ): Promise<WeaponTemplate> {
+  await storeReady;
   const id = crypto.randomUUID();
   // Spread + id over a discriminated-union input loses narrowing in TS, so
   // assert the resulting shape — the caller already chose a kind in `data`.
   const template = { id, ...data } as WeaponTemplate;
   store.weaponTemplates.push(template);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlInsertWeaponTemplate(db, template);
   return template;
 }
@@ -38,28 +39,29 @@ export async function updateWeaponTemplate(
   id: string,
   data: WeaponTemplateInput,
 ): Promise<void> {
+  await storeReady;
   const template = getWeaponTemplate(id);
   if (!template) return;
   Object.assign(template, data);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   // Kind may have changed; sqlReplaceWeaponTemplate clears both kind
   // tables before inserting into the right one.
   if (db) await runTx(db, (tx) => sqlReplaceWeaponTemplate(tx, template));
 }
 
 export async function deleteWeaponTemplate(id: string): Promise<void> {
+  await storeReady;
   const idx = store.weaponTemplates.findIndex((t) => t.id === id);
   if (idx === -1) return;
   store.weaponTemplates.splice(idx, 1);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await runTx(db, (tx) => sqlDeleteWeaponTemplate(tx, id));
 }
 
 export async function duplicateWeaponTemplate(
   id: string,
 ): Promise<WeaponTemplate | undefined> {
+  await storeReady;
   const template = getWeaponTemplate(id);
   if (!template) return;
   const clone: WeaponTemplate = {
@@ -69,8 +71,7 @@ export async function duplicateWeaponTemplate(
   };
   const idx = store.weaponTemplates.indexOf(template);
   store.weaponTemplates.splice(idx + 1, 0, clone);
-  save();
-  const db = await dbWriteReady;
+  const db = await dbReady;
   if (db) await sqlInsertWeaponTemplate(db, clone);
   return clone;
 }
