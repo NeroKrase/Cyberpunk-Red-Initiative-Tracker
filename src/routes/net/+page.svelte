@@ -6,6 +6,7 @@
     duplicateNetArchitecture,
   } from "$lib/store.svelte";
   import { showConfirm } from "$lib/confirm.svelte";
+  import RowActions from "$lib/RowActions.svelte";
 
   async function removeArchitecture(id: string, name: string) {
     const ok = await showConfirm({
@@ -42,33 +43,11 @@
                 ? arch.demons[0].name || "DEMON"
                 : `${arch.demons.length} DEMONS`}
           </span>
-          <button
-            type="button"
-            class="del"
-            onclick={() => void duplicateNetArchitecture(arch.id)}
-            aria-label="Duplicate {arch.name}"
-          >
-            <svg
-              viewBox="0 0 100 100"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="20" y="30" width="50" height="55" />
-              <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="del"
-            onclick={() => removeArchitecture(arch.id, arch.name)}
-            aria-label="Delete {arch.name}">×</button
-          >
+          <RowActions
+            label={arch.name || "architecture"}
+            onDuplicate={() => void duplicateNetArchitecture(arch.id)}
+            onRemove={() => removeArchitecture(arch.id, arch.name)}
+          />
         </li>
       {/each}
     </ul>
@@ -143,21 +122,6 @@
     font-size: 0.78em;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-  }
-
-  .del {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid transparent;
-    color: var(--text-faint);
-    padding: 0.2rem 0.4rem;
-    font-size: 1em;
-    line-height: 1;
-  }
-  .del:hover {
-    color: var(--accent-bright);
-    border-color: var(--accent);
   }
 
   .empty {

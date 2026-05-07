@@ -47,5 +47,6 @@ export {
   updateNetArchitecture,
   deleteNetArchitecture,
   duplicateNetArchitecture,
+  persistNetArchitecture,
   type NetArchitectureInput,
 } from "./stores/netArchitectures.svelte";

@@ -72,3 +72,15 @@ export async function duplicateNetArchitecture(
 function cloneArchitectureInput(data: NetArchitectureInput): NetArchitectureInput {
   return JSON.parse(JSON.stringify(data)) as NetArchitectureInput;
 }
+
+// Re-sync the in-memory architecture (already mutated by inline editing)
+// to SQLite. Used by the inline editor where bound inputs mutate the
+// store object directly via $state proxies — only the DB layer still
+// needs an explicit push. No-op when there's no Tauri runtime.
+export async function persistNetArchitecture(id: string): Promise<void> {
+  await storeReady;
+  const arch = getNetArchitecture(id);
+  if (!arch) return;
+  const db = await dbReady;
+  if (db) await runTx(db, (tx) => sqlUpdateNetArchitecture(tx, arch));
+}

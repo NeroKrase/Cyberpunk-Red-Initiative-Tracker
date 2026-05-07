@@ -11,6 +11,7 @@
   import type { EnemyTemplate } from "$lib/types";
   import { maxHpFromStats } from "$lib/types";
   import { page } from "$app/state";
+  import RowActions from "$lib/RowActions.svelte";
 
   let tab = $state<"npcs" | "weapons">(
     page.url.searchParams.get("tab") === "weapons" ? "weapons" : "npcs",
@@ -107,33 +108,11 @@
               <span class="card-tag">CARD</span>
               <span class="card-size">L</span>
             </button>
-            <button
-              type="button"
-              class="del"
-              onclick={() => void duplicateTemplate(template.id)}
-              aria-label="Duplicate {template.name}"
-            >
-              <svg
-                viewBox="0 0 100 100"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="20" y="30" width="50" height="55" />
-                <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              class="del"
-              onclick={() => removeTemplate(template.id, template.name)}
-              aria-label="Delete {template.name}">×</button
-            >
+            <RowActions
+              label={template.name || "perp"}
+              onDuplicate={() => void duplicateTemplate(template.id)}
+              onRemove={() => removeTemplate(template.id, template.name)}
+            />
           </li>
         {/each}
       </ul>
@@ -156,33 +135,11 @@
               · {weapon.damage}D6{#if weapon.kind === "range"}
                 · MAG {weapon.magazine}{/if}
             </span>
-            <button
-              type="button"
-              class="del"
-              onclick={() => void duplicateWeaponTemplate(weapon.id)}
-              aria-label="Duplicate {weapon.name}"
-            >
-              <svg
-                viewBox="0 0 100 100"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="20" y="30" width="50" height="55" />
-                <path d="M 30 30 L 30 15 L 80 15 L 80 70 L 70 70" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              class="del"
-              onclick={() => removeWeapon(weapon.id, weapon.name)}
-              aria-label="Delete {weapon.name}">×</button
-            >
+            <RowActions
+              label={weapon.name || "weapon"}
+              onDuplicate={() => void duplicateWeaponTemplate(weapon.id)}
+              onRemove={() => removeWeapon(weapon.id, weapon.name)}
+            />
           </li>
         {/each}
       </ul>
@@ -331,21 +288,6 @@
     font-size: 0.78em;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-  }
-
-  .del {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid transparent;
-    color: var(--text-faint);
-    padding: 0.2rem 0.4rem;
-    font-size: 1em;
-    line-height: 1;
-  }
-  .del:hover {
-    color: var(--accent-bright);
-    border-color: var(--accent);
   }
 
   .card-btn {
