@@ -5,7 +5,7 @@
     backHref: string;
     backLabel: string;
     title: string;
-    faction: "red" | "blue";
+    faction: "red" | "blue" | "net";
     children: Snippet;
   };
 
@@ -29,6 +29,10 @@
   .page[data-faction="blue"] {
     --faction: var(--ncpd);
     --faction-bright: var(--ncpd-bright);
+  }
+  .page[data-faction="net"] {
+    --faction: var(--net);
+    --faction-bright: var(--net-bright);
   }
 
   .back {

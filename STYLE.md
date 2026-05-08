@@ -37,6 +37,8 @@ All tokens live in `src/routes/+layout.svelte` under `:global(:root)`. Use CSS c
 | `--hazard` | `#f5b800` | Caution amber. Seriously-wounded, warnings. Stencil-only — borders and text, not fills. |
 | `--ncpd` | `#2479ff` | Police-blue, NCPD-flavored surfaces (the bestiary). More saturated than `--data`. |
 | `--ncpd-bright` | `#4d92ff` | Hover variant of `--ncpd`. |
+| `--net` | `#7a3cff` | NET-flavored violet. Used by the NET Architectures app and its sub-pages. Distinct from red/blue/teal. |
+| `--net-bright` | `#9d6bff` | Hover variant of `--net`. |
 | `--data` | `#3ed1d6` | Cool-teal data accent. Use **sparingly** — readout tags only, never as a dominant tint. |
 
 ### Text

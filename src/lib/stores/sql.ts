@@ -6,6 +6,9 @@ import type {
   Encounter,
   Enemy,
   EnemyTemplate,
+  NetArchitecture,
+  NetDemon,
+  NetFloor,
   Session,
   Weapon,
   WeaponTemplate,
@@ -536,4 +539,70 @@ export async function sqlReplaceWeaponTemplate(
 export async function sqlDeleteWeaponTemplate(db: TxLike, id: string): Promise<void> {
   await db.execute("DELETE FROM melee_weapon_templates WHERE id = $1", [id]);
   await db.execute("DELETE FROM range_weapon_templates WHERE id = $1", [id]);
+}
+
+// ---- NET architectures ----
+
+export async function sqlInsertNetArchitecture(
+  db: TxLike,
+  a: NetArchitecture,
+): Promise<void> {
+  await db.execute("INSERT INTO net_architectures (id, name) VALUES ($1, $2)", [
+    a.id,
+    a.name,
+  ]);
+  await sqlInsertNetDemons(db, a.id, a.demons);
+  await sqlInsertNetFloors(db, a.id, a.floors);
+}
+
+async function sqlInsertNetDemons(
+  db: TxLike,
+  archId: string,
+  demons: NetDemon[],
+): Promise<void> {
+  for (let i = 0; i < demons.length; i++) {
+    const d = demons[i];
+    await db.execute(
+      `INSERT INTO net_demons
+         (id, architecture_id, name, rez, interface, net_actions, combat_number, position)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [d.id, archId, d.name, d.rez, d.interfaceLevel, d.netActions, d.combatNumber, i],
+    );
+  }
+}
+
+async function sqlInsertNetFloors(
+  db: TxLike,
+  archId: string,
+  floors: NetFloor[],
+): Promise<void> {
+  for (let i = 0; i < floors.length; i++) {
+    const f = floors[i];
+    await db.execute(
+      `INSERT INTO net_floors (id, architecture_id, type, description, dv, position)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [f.id, archId, f.type, f.description, f.dv, i],
+    );
+  }
+}
+
+// Replace-all-children pattern mirrors sqlUpdateTemplate: simplest
+// correct shape is UPDATE parent + DELETE children + re-INSERT children.
+// Caller wraps in runTx.
+export async function sqlUpdateNetArchitecture(
+  db: TxLike,
+  a: NetArchitecture,
+): Promise<void> {
+  await db.execute("UPDATE net_architectures SET name=$1 WHERE id=$2", [a.name, a.id]);
+  await db.execute("DELETE FROM net_demons WHERE architecture_id = $1", [a.id]);
+  await db.execute("DELETE FROM net_floors WHERE architecture_id = $1", [a.id]);
+  await sqlInsertNetDemons(db, a.id, a.demons);
+  await sqlInsertNetFloors(db, a.id, a.floors);
+}
+
+export async function sqlDeleteNetArchitecture(
+  db: TxLike,
+  id: string,
+): Promise<void> {
+  await db.execute("DELETE FROM net_architectures WHERE id = $1", [id]);
 }

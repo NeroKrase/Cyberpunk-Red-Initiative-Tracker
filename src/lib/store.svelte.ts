@@ -40,3 +40,13 @@ export {
   duplicateWeaponTemplate,
   type WeaponTemplateInput,
 } from "./stores/weaponTemplates.svelte";
+
+export {
+  createNetArchitecture,
+  getNetArchitecture,
+  updateNetArchitecture,
+  deleteNetArchitecture,
+  duplicateNetArchitecture,
+  persistNetArchitecture,
+  type NetArchitectureInput,
+} from "./stores/netArchitectures.svelte";

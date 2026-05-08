@@ -35,14 +35,37 @@
       <span class="bracket-r"></span>
     </div>
   </a>
+
+  <a class="app" href="/net" style="--faction: var(--net); --faction-bright: var(--net-bright);">
+    <div class="frame">
+      <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+        <line x1="22" y1="22" x2="22" y2="86" />
+        <rect x="30" y="18" width="56" height="10" />
+        <rect x="30" y="34" width="56" height="10" />
+        <rect x="30" y="50" width="56" height="10" />
+        <rect x="30" y="66" width="56" height="10" />
+        <rect x="30" y="82" width="56" height="10" />
+        <circle cx="22" cy="23" r="2.5" fill="currentColor" stroke="none" />
+        <circle cx="22" cy="39" r="2.5" fill="currentColor" stroke="none" />
+        <circle cx="22" cy="55" r="2.5" fill="currentColor" stroke="none" />
+        <circle cx="22" cy="71" r="2.5" fill="currentColor" stroke="none" />
+        <circle cx="22" cy="87" r="2.5" fill="currentColor" stroke="none" />
+      </svg>
+    </div>
+    <div class="label">
+      <span class="bracket-l"></span>
+      <span class="label-text">NET Architectures</span>
+      <span class="bracket-r"></span>
+    </div>
+  </a>
 </div>
 
 <style>
   .launcher {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
-    max-width: 640px;
+    max-width: 960px;
     margin: clamp(2rem, 8vh, 6rem) auto 0;
   }
 

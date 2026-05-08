@@ -446,3 +446,73 @@ export function emptyStatBlock(): EnemyStatBlock {
     cyberware: [],
   };
 }
+
+// ---- NET architectures ----
+
+export const NET_FLOOR_TYPES = [
+  "Password",
+  "Black ICE",
+  "Control Node",
+  "File",
+] as const;
+export type NetFloorType = (typeof NET_FLOOR_TYPES)[number];
+
+export type NetFloor = {
+  id: string;
+  type: NetFloorType;
+  description: string; // ignored by render when type === "Password"
+  dv: number | null; // null for Black ICE; render as "—"
+};
+
+export type NetDemon = {
+  id: string;
+  name: string;
+  rez: number;
+  interfaceLevel: number; // `interface` is reserved
+  netActions: number;
+  combatNumber: number;
+};
+
+export type NetArchitecture = {
+  id: string;
+  name: string;
+  demons: NetDemon[]; // empty array ⇒ no demons installed
+  floors: NetFloor[]; // index 0 = Floor 1 (top)
+};
+
+export function floorNeedsDescription(t: NetFloorType): boolean {
+  return t !== "Password";
+}
+
+export function floorHasDv(t: NetFloorType): boolean {
+  return t !== "Black ICE";
+}
+
+export function emptyNetFloor(): NetFloor {
+  return {
+    id: crypto.randomUUID(),
+    type: "Password",
+    description: "",
+    dv: 10,
+  };
+}
+
+export function emptyNetDemon(): NetDemon {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    rez: 0,
+    interfaceLevel: 0,
+    netActions: 0,
+    combatNumber: 0,
+  };
+}
+
+export function emptyNetArchitecture(): NetArchitecture {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    demons: [],
+    floors: [],
+  };
+}
