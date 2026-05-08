@@ -118,12 +118,6 @@ pub fn run() {
             sql: include_str!("../migrations/002_net_architectures.sql"),
             kind: MigrationKind::Up,
         },
-        Migration {
-            version: 3,
-            description: "net_demons",
-            sql: include_str!("../migrations/003_net_demons.sql"),
-            kind: MigrationKind::Up,
-        },
     ];
 
     tauri::Builder::default()
