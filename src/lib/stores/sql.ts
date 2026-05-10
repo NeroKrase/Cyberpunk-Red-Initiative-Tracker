@@ -420,8 +420,8 @@ async function sqlInsertTemplateChildren(
       await db.execute(
         `INSERT INTO template_range_weapons (
            id, template_id, weapon_template_id, name, weapon_type, quality,
-           rof, damage, description, ammo, magazine, position
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+           rof, damage, description, ammo, magazine, loaded, position
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [
           w.id,
           t.id,
@@ -434,6 +434,7 @@ async function sqlInsertTemplateChildren(
           w.description,
           w.ammo,
           w.magazine,
+          w.loaded,
           i,
         ],
       );

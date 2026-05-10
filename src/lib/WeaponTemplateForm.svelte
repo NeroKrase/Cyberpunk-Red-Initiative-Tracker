@@ -65,17 +65,18 @@
         description: description.trim(),
       });
     } else {
+      const mag = natural(magazine, 0);
       onSave({
         kind: "range",
         name: name.trim(),
         weaponType: rangeType,
         quality,
         rof: natural(rof, 1),
-        magazine: natural(magazine, 0),
-        // NPC weapons added from this template start with ammo equal to
-        // magazine size (fully loaded). Templates carry the same shape
-        // as NPC weapons, so we initialise ammo here.
-        ammo: natural(magazine, 0),
+        magazine: mag,
+        // Blueprint defaults: a freshly-spawned NPC weapon starts with
+        // a full mag and one mag's worth of spare rounds in inventory.
+        loaded: mag,
+        ammo: mag,
         damage: natural(damage, 0),
         description: description.trim(),
       });
@@ -142,8 +143,17 @@
       />
     </label>
     <label>
-      Damage (d6)
-      <input type="number" min="0" step="1" bind:value={damage} />
+      Damage
+      <span class="dmg-block">
+        <input
+          type="number"
+          min="0"
+          step="1"
+          bind:value={damage}
+          class="dmg-input"
+        />
+        <span class="dmg-suffix">d6</span>
+      </span>
     </label>
   </div>
 
@@ -243,5 +253,53 @@
   .actions {
     display: flex;
     gap: 0.5rem;
+  }
+
+  /* Damage cell: bordered block (matching a regular input) wraps the
+     editable digits and the static "d6" suffix together. Inner
+     <input> is borderless/transparent and hides its spinners so the
+     value hugs "d6" with no gap. */
+  .dmg-block {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.15rem;
+    padding: 0.45rem 0.7rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    line-height: normal;
+    box-sizing: border-box;
+  }
+  .dmg-block:focus-within {
+    border-color: var(--faction, var(--ncpd));
+  }
+  .dmg-block .dmg-input {
+    flex: 0 0 auto;
+    text-align: left;
+    /* Shrink to content so "d6" hugs the digits with no dead space. */
+    field-sizing: content;
+    min-width: 1ch;
+    max-width: 4ch;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  .dmg-block .dmg-input:focus {
+    outline: none;
+  }
+  .dmg-block .dmg-input::-webkit-outer-spin-button,
+  .dmg-block .dmg-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .dmg-suffix {
+    color: var(--text-muted);
+    flex: 0 0 auto;
   }
 </style>

@@ -118,6 +118,12 @@ pub fn run() {
             sql: include_str!("../migrations/002_net_architectures.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "template_loaded_rounds",
+            sql: include_str!("../migrations/003_template_loaded_rounds.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

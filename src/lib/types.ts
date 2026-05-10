@@ -247,12 +247,15 @@ export type MeleeWeapon = WeaponBase & {
   weaponType: MeleeWeaponType | "";
 };
 
-// Range weapons add `magazine` (capacity per magazine, fixed by the
-// weapon model) and `ammo` (rounds the wielder is currently carrying).
+// Range weapons add `magazine` (max capacity, fixed by the weapon
+// model), `loaded` (rounds currently in the magazine — what gets spent
+// per shot), and `ammo` (spare rounds the wielder is carrying in
+// inventory).
 export type RangeWeapon = WeaponBase & {
   kind: "range";
   weaponType: RangeWeaponType | "";
   magazine: number;
+  loaded: number;
   ammo: number;
 };
 
@@ -294,6 +297,7 @@ export function emptyRangeWeapon(): RangeWeapon {
     quality: "",
     rof: 1,
     magazine: 0,
+    loaded: 0,
     ammo: 0,
     damage: 0,
     description: "",
