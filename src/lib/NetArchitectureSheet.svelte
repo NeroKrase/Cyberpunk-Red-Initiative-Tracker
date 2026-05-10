@@ -701,7 +701,13 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     text-align: center;
-    color: var(--text);
+    background: var(--faction);
+    color: #000;
+    font-weight: 700;
+    border: 1px solid rgba(0, 0, 0, 0.45);
+  }
+  .dv-input:focus {
+    border-color: #000;
   }
 
   .box-center {

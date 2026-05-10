@@ -7,6 +7,8 @@
   } from "$lib/store.svelte";
   import { showConfirm } from "$lib/confirm.svelte";
   import RowActions from "$lib/RowActions.svelte";
+  import { downloadNetArchitectureCard } from "$lib/cards";
+  import type { NetArchitecture } from "$lib/types";
 
   async function removeArchitecture(id: string, name: string) {
     const ok = await showConfirm({
@@ -14,6 +16,15 @@
       message: `Delete architecture "${name || "(unnamed)"}"?`,
     });
     if (ok) await deleteNetArchitecture(id);
+  }
+
+  async function generateCard(arch: NetArchitecture) {
+    try {
+      await downloadNetArchitectureCard(arch);
+    } catch (err) {
+      console.error("card generation failed", err);
+      alert("Failed to generate card. See console for details.");
+    }
   }
 </script>
 
@@ -43,6 +54,15 @@
                 ? arch.demons[0].name || "DEMON"
                 : `${arch.demons.length} DEMONS`}
           </span>
+          <button
+            type="button"
+            class="card-btn"
+            onclick={() => generateCard(arch)}
+            aria-label="Download card for {arch.name || 'architecture'}"
+            title="Download architecture card"
+          >
+            <span class="card-tag">CARD</span>
+          </button>
           <RowActions
             label={arch.name || "architecture"}
             onDuplicate={() => void duplicateNetArchitecture(arch.id)}
@@ -122,6 +142,29 @@
     font-size: 0.78em;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+  }
+
+  .card-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .card-btn:hover {
+    color: var(--faction);
+    border-color: var(--faction);
+  }
+  .card-tag {
+    font-family: var(--font-mono);
+    font-weight: 700;
   }
 
   .empty {
