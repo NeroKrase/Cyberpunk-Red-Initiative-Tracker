@@ -92,20 +92,25 @@
               <span class="mono cell-value">{w.rof}</span>
             </span>
             {#if isRange(w)}
-              <span class="cell">
+              <span class="cell mag-cell">
                 <span class="cell-label">Mag</span>
-                <span class="mono cell-value">{w.magazine}</span>
-              </span>
-              <span class="cell">
-                <span class="cell-label">Ammo</span>
-                <input
-                  type="number"
-                  class="cell-input num mono"
-                  min="0"
-                  value={w.ammo}
-                  onchange={(e) => onAmmoChange(w.id, e.currentTarget.value)}
-                  aria-label="Ammo for {w.name || 'weapon'}"
-                />
+                <span class="mag-value mono">
+                  <input
+                    type="number"
+                    class="mag-loaded"
+                    min="0"
+                    max={w.magazine}
+                    value={w.ammo}
+                    onchange={(e) => onAmmoChange(w.id, e.currentTarget.value)}
+                    aria-label="Loaded rounds for {w.name || 'weapon'}"
+                  />
+                  <span class="mag-sep">/</span>
+                  <span
+                    class="mag-max"
+                    aria-label="Max magazine for {w.name || 'weapon'}"
+                    >{w.magazine}</span
+                  >
+                </span>
               </span>
             {/if}
             <span class="cell">
@@ -340,20 +345,50 @@
     font-weight: 700;
   }
 
-  .cell-input {
-    width: 3.2rem;
-    padding: 0 0.45rem;
+  /* Combined Mag cell: editable loaded rounds + "/" + max magazine.
+     Loaded sizes to its content so "/" and max sit immediately after
+     the digits — matches the NPC template's mag block. */
+  .mag-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0 0.55rem;
     background: var(--surface);
     color: var(--text);
-    border: none;
-    text-align: center;
     font-weight: 600;
+    font-size: 0.9rem;
   }
-
-
-  .cell-input:focus {
+  .mag-value .mag-loaded {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: left;
+    field-sizing: content;
+    min-width: 1ch;
+    max-width: 4ch;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  .mag-value .mag-loaded::-webkit-outer-spin-button,
+  .mag-value .mag-loaded::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .mag-value .mag-loaded:focus {
     outline: 1px solid var(--accent);
     outline-offset: -1px;
+  }
+  .mag-value .mag-sep {
+    color: var(--text-faint);
+  }
+  .mag-value .mag-max {
+    color: var(--text-muted);
   }
 
   .armor-loc {
