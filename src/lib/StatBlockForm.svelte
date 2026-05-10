@@ -650,8 +650,8 @@
     grid-template-columns:
       minmax(12.5rem, 1.83fr) /* Name (wider) */
       5rem /* Kind */
-      minmax(5.5rem, 0.77fr) /* Type (half width +10%) */
-      minmax(8rem, 0.7fr) /* Qual — wide enough for "EQ — Excellent" */
+      minmax(6.5rem, 0.95fr) /* Type — bumped up for "Rocket Launcher" etc. */
+      minmax(7rem, 0.55fr) /* Qual — still fits "EQ — Excellent" */
       2.5rem /* C# */
       4rem /* ROF */
       5.5rem /* Mag — fits "99 / 99" with snug separator */
