@@ -1,29 +1,76 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
+  import PageChrome from "$lib/PageChrome.svelte";
+  import NetArchitectureSheet from "$lib/NetArchitectureSheet.svelte";
   import { createNetArchitecture } from "$lib/store.svelte";
+  import type { NetArchitecture } from "$lib/types";
 
-  // No form: a brand-new architecture is just an empty record. Create
-  // it immediately and bounce to the inline structure editor — the user
-  // names it, adds demons, and adds floors right there in the sheet.
-  // replaceState avoids leaving /net/new in history (Back from the
-  // editor goes to the list, not back through this stub).
-  onMount(async () => {
+  // Draft lives only in memory — nothing is persisted until the user
+  // clicks Register. The page's Back link, Cancel button, and tab close
+  // all discard the draft cleanly. An id is allocated up front because
+  // NetArchitectureSheet expects a full NetArchitecture; createNet…
+  // rolls its own id when the draft is saved.
+  let draft = $state<NetArchitecture>({
+    id: crypto.randomUUID(),
+    name: "",
+    demons: [],
+    floors: [],
+  });
+
+  let registerBtn: HTMLButtonElement | undefined = $state();
+
+  // Clear any lingering "missing floors" message as soon as the user
+  // adds a floor — same way the native required tooltip vanishes once
+  // the field is filled.
+  $effect(() => {
+    if (draft.floors.length > 0) registerBtn?.setCustomValidity("");
+  });
+
+  async function register(event: Event) {
+    event.preventDefault();
+    if (draft.floors.length === 0) {
+      // Mirror the weapon-template "name required" UX: the browser's
+      // native constraint-validation tooltip anchors to the submit
+      // button when its form fails validation.
+      registerBtn?.setCustomValidity(
+        "Add at least one floor before registering this architecture",
+      );
+      registerBtn?.reportValidity();
+      return;
+    }
+    registerBtn?.setCustomValidity("");
     const arch = await createNetArchitecture({
-      name: "",
-      demons: [],
-      floors: [],
+      name: draft.name,
+      demons: draft.demons,
+      floors: draft.floors,
     });
     goto(`/net/${arch.id}`, { replaceState: true });
-  });
+  }
+
+  function cancel() {
+    goto("/net");
+  }
 </script>
 
-<p class="loading">// initialising new architecture…</p>
+<PageChrome
+  backHref="/net"
+  backLabel="Architectures"
+  title="Build NET architecture"
+  faction="net"
+>
+  <NetArchitectureSheet arch={draft} onChange={() => {}} />
+  <form class="actions" onsubmit={register}>
+    <button type="submit" bind:this={registerBtn}>
+      Register architecture
+    </button>
+    <button type="button" onclick={cancel}>Cancel</button>
+  </form>
+</PageChrome>
 
 <style>
-  .loading {
-    color: var(--text-faint);
-    font-family: var(--font-mono);
-    margin: 2rem 0;
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
   }
 </style>

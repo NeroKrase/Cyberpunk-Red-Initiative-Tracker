@@ -122,25 +122,21 @@
         bind:value={quality}
       >
         <option value="" class="quality-opt-normal">Normal</option>
-        <option value="excellent" class="quality-opt-excellent"
-          >EQ — Excellent</option
-        >
-        <option value="poor" class="quality-opt-poor">PQ — Poor</option>
+        <option value="excellent" class="quality-opt-excellent">Excellent</option>
+        <option value="poor" class="quality-opt-poor">Poor</option>
       </select>
     </label>
     <label>
       ROF
       <input type="number" min="1" step="1" bind:value={rof} />
     </label>
-    <label class:hidden={kind !== "range"} aria-hidden={kind !== "range"}>
+    <label>
       Magazine
-      <input
-        type="number"
-        min="0"
-        step="1"
-        bind:value={magazine}
-        disabled={kind !== "range"}
-      />
+      {#if kind === "range"}
+        <input type="number" min="0" step="1" bind:value={magazine} />
+      {:else}
+        <span class="na-cell" aria-label="Not applicable for melee">—</span>
+      {/if}
     </label>
     <label>
       Damage
@@ -178,26 +174,20 @@
     margin: 0;
   }
 
-  /* Row 1: Name (full width). Row 2: Kind | Type | Quality | ROF |
-     Max Magazine | Damage — all six on one line. The Max Magazine cell
-     keeps its slot but visibility:hidden when the weapon is melee, so
-     widths never shift across kind switches. */
+  /* Single row: Name | Kind | Type | Quality | ROF | Magazine | Damage.
+     Melee weapons swap the Magazine input for a stencil "—" so the
+     column stays put across kind switches. */
   .grid {
     display: grid;
     grid-template-columns:
-      minmax(5.5rem, 0.7fr) /* Kind */
-      minmax(7rem, 1.2fr) /* Type */
-      minmax(7.5rem, 1.1fr) /* Quality */
-      minmax(4rem, 0.5fr) /* ROF */
-      minmax(6rem, 0.8fr) /* Max Magazine */
-      minmax(5rem, 0.6fr); /* Damage */
+      minmax(12rem, 2.2fr) /* Name (wider) */
+      minmax(5rem, 0.5fr) /* Kind */
+      minmax(6.5rem, 0.85fr) /* Type — fits "Rocket Launcher" */
+      minmax(5rem, 0.55fr) /* Quality — fits "Excellent" */
+      minmax(3.5rem, 0.35fr) /* ROF */
+      minmax(4.5rem, 0.5fr) /* Magazine */
+      minmax(4rem, 0.4fr); /* Damage */
     gap: 0.6rem 0.5rem;
-  }
-  .span-name {
-    grid-column: 1 / -1;
-  }
-  .hidden {
-    visibility: hidden;
   }
 
   @media (max-width: 760px) {
@@ -212,6 +202,16 @@
     .grid {
       grid-template-columns: repeat(2, 1fr);
     }
+  }
+
+  .na-cell {
+    padding: 0.45rem 0.7rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    text-align: center;
+    box-sizing: border-box;
   }
 
   /* The closed select takes the bg colour of the currently-selected

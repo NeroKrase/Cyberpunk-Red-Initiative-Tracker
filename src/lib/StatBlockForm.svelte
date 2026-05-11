@@ -103,10 +103,10 @@
             kind: "range",
             weaponType: template.weaponType,
             magazine: template.magazine,
-            // Fresh NPC weapon: mag full, inventory carries the
-            // template's stock of spare rounds.
+            // Fresh NPC weapon: mag full, pockets empty — the GM
+            // sets reserve ammo per encounter.
             loaded: template.magazine,
-            ammo: template.ammo,
+            ammo: 0,
           },
     );
   }
@@ -322,10 +322,8 @@
             aria-label="Quality for {weapon.name || 'weapon'}"
           >
             <option value="" class="quality-opt-normal">Normal</option>
-            <option value="excellent" class="quality-opt-excellent"
-              >EQ — Excellent</option
-            >
-            <option value="poor" class="quality-opt-poor">PQ — Poor</option>
+            <option value="excellent" class="quality-opt-excellent">Excellent</option>
+            <option value="poor" class="quality-opt-poor">Poor</option>
           </select>
           <span
             class="combat-num"
@@ -359,7 +357,18 @@
                 aria-label="Loaded rounds for {weapon.name || 'weapon'}"
               />
               <span class="mag-sep">/</span>
-              <span class="mag-max">{weapon.magazine}</span>
+              {#if weapon.templateId}
+                <span class="mag-max">{weapon.magazine}</span>
+              {:else}
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  bind:value={weapon.magazine}
+                  class="mag-max-input"
+                  aria-label="Max magazine for {weapon.name || 'weapon'}"
+                />
+              {/if}
             </span>
             <input
               type="number"
@@ -648,15 +657,15 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      minmax(12.5rem, 1.83fr) /* Name (wider) */
+      minmax(14rem, 2.1fr) /* Name (wider) */
       5rem /* Kind */
-      minmax(6.5rem, 0.95fr) /* Type — bumped up for "Rocket Launcher" etc. */
-      minmax(7rem, 0.55fr) /* Qual — still fits "EQ — Excellent" */
+      minmax(7rem, 0.9fr) /* Type — fits "Rocket Launcher" */
+      minmax(5.5rem, 0.4fr) /* Qual — fits "Excellent" */
       2.5rem /* C# */
       4rem /* ROF */
-      5.5rem /* Mag — fits "99 / 99" with snug separator */
-      4rem /* Ammo (inventory) */
-      4.5rem /* Dmg + d6 suffix */
+      6.5rem /* Mag — fits "99 / 99" plus editable max */
+      4.5rem /* Ammo (inventory) */
+      4rem /* Dmg + d6 suffix */
       auto; /* × */
     gap: 0.4rem 0.6rem;
     align-items: center;
@@ -757,7 +766,8 @@
   .mag-block {
     justify-content: flex-start;
   }
-  .mag-block .mag-loaded {
+  .mag-block .mag-loaded,
+  .mag-block .mag-max-input {
     flex: 0 0 auto;
     text-align: left;
     /* Same content-sizing trick as .dmg-input so "/" hugs the value
@@ -765,6 +775,9 @@
     field-sizing: content;
     min-width: 1ch;
     max-width: 4ch;
+  }
+  .mag-block .mag-max-input {
+    color: var(--text-muted);
   }
   .mag-sep {
     color: var(--text-faint);
