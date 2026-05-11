@@ -293,6 +293,10 @@ function rangeFromCombatantRow(r: CombatantRangeRow) {
       damage: r.damage,
       description: r.description,
       magazine: r.magazine,
+      // combatant_range_weapons has no `loaded` column (option 2 scope:
+      // NPC templates only). Default to ammo so the in-encounter view
+      // keeps its existing semantic untouched.
+      loaded: r.ammo,
       ammo: r.ammo,
       templateId: r.template_id ?? undefined,
     } satisfies RangeWeapon,
@@ -329,6 +333,7 @@ function rangeFromTemplateRow(r: TemplateRangeRow) {
       damage: r.damage,
       description: r.description,
       magazine: r.magazine,
+      loaded: r.loaded,
       ammo: r.ammo,
       templateId: r.weapon_template_id ?? undefined,
     } satisfies RangeWeapon,
@@ -359,6 +364,9 @@ function rangeFromRegistryRow(r: RangeRegistryRow): RangeWeapon {
     damage: r.damage,
     description: r.description,
     magazine: r.magazine,
+    // Registry rows are blueprints — no loaded state. Default to
+    // magazine so when copied to a fresh NPC the weapon starts loaded.
+    loaded: r.magazine,
     ammo: r.ammo,
   };
 }
@@ -535,6 +543,7 @@ type TemplateRangeRow = {
   description: string;
   ammo: number;
   magazine: number;
+  loaded: number;
   position: number;
 };
 

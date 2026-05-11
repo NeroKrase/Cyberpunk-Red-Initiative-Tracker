@@ -103,8 +103,10 @@
             kind: "range",
             weaponType: template.weaponType,
             magazine: template.magazine,
-            // NPC starts fully loaded — ammo defaults to magazine size.
-            ammo: template.magazine,
+            // Fresh NPC weapon: mag full, pockets empty — the GM
+            // sets reserve ammo per encounter.
+            loaded: template.magazine,
+            ammo: 0,
           },
     );
   }
@@ -136,6 +138,7 @@
         quality: w.quality,
         rof: w.rof,
         magazine: 0,
+        loaded: 0,
         ammo: 0,
         damage: w.damage,
         description: w.description,
@@ -274,9 +277,9 @@
         <span class="weapon-head">Qual</span>
         <span class="weapon-head" title="Combat number">C#</span>
         <span class="weapon-head">ROF</span>
-        <span class="weapon-head" title="Magazine capacity">Mag</span>
-        <span class="weapon-head" title="Ammo carried (range only)">Ammo</span>
-        <span class="weapon-head">Dmg (d6)</span>
+        <span class="weapon-head" title="Loaded / max magazine (range only)">Mag</span>
+        <span class="weapon-head" title="Inventory ammo (range only)">Ammo</span>
+        <span class="weapon-head">Dmg</span>
         <span></span>
         {#each weapons as weapon, i (weapon.id)}
           <input bind:value={weapon.name} placeholder="Name" />
@@ -319,10 +322,8 @@
             aria-label="Quality for {weapon.name || 'weapon'}"
           >
             <option value="" class="quality-opt-normal">Normal</option>
-            <option value="excellent" class="quality-opt-excellent"
-              >EQ — Excellent</option
-            >
-            <option value="poor" class="quality-opt-poor">PQ — Poor</option>
+            <option value="excellent" class="quality-opt-excellent">Excellent</option>
+            <option value="poor" class="quality-opt-poor">Poor</option>
           </select>
           <span
             class="combat-num"
@@ -342,34 +343,58 @@
             aria-label="ROF for {weapon.name || 'weapon'}"
           />
           {#if weapon.kind === "range"}
-            <input
-              type="number"
-              min="0"
-              step="1"
-              bind:value={weapon.magazine}
-              class="num"
-              aria-label="Magazine capacity for {weapon.name || 'weapon'}"
-            />
+            <span
+              class="mag-block"
+              aria-label="Loaded / max magazine for {weapon.name || 'weapon'}"
+            >
+              <input
+                type="number"
+                min="0"
+                step="1"
+                max={weapon.magazine}
+                bind:value={weapon.loaded}
+                class="mag-loaded"
+                aria-label="Loaded rounds for {weapon.name || 'weapon'}"
+              />
+              <span class="mag-sep">/</span>
+              {#if weapon.templateId}
+                <span class="mag-max">{weapon.magazine}</span>
+              {:else}
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  bind:value={weapon.magazine}
+                  class="mag-max-input"
+                  aria-label="Max magazine for {weapon.name || 'weapon'}"
+                />
+              {/if}
+            </span>
             <input
               type="number"
               min="0"
               step="1"
               bind:value={weapon.ammo}
               class="num"
-              aria-label="Ammo carried for {weapon.name || 'weapon'}"
+              aria-label="Inventory ammo for {weapon.name || 'weapon'}"
             />
           {:else}
-            <span class="empty-cell" aria-label="No magazine for melee">—</span>
-            <span class="empty-cell" aria-label="No ammo for melee">—</span>
+            <span
+              class="empty-cell empty-melee"
+              aria-label="No magazine or ammo for melee">—</span
+            >
           {/if}
-          <input
-            type="number"
-            min="0"
-            step="1"
-            bind:value={weapon.damage}
-            class="num"
-            aria-label="Damage d6 for {weapon.name || 'weapon'}"
-          />
+          <span class="dmg-block">
+            <input
+              type="number"
+              min="0"
+              step="1"
+              bind:value={weapon.damage}
+              class="dmg-input"
+              aria-label="Damage d6 for {weapon.name || 'weapon'}"
+            />
+            <span class="dmg-suffix">d6</span>
+          </span>
           <button
             type="button"
             onclick={() => weapons.splice(i, 1)}
@@ -632,15 +657,15 @@
   .weapon-grid {
     display: grid;
     grid-template-columns:
-      minmax(12.5rem, 1.83fr) /* Name (wider) */
+      minmax(14rem, 2.1fr) /* Name (wider) */
       5rem /* Kind */
-      minmax(5.5rem, 0.77fr) /* Type (half width +10%) */
-      minmax(8rem, 0.7fr) /* Qual — wide enough for "EQ — Excellent" */
+      minmax(7rem, 0.9fr) /* Type — fits "Rocket Launcher" */
+      minmax(5.5rem, 0.4fr) /* Qual — fits "Excellent" */
       2.5rem /* C# */
       4rem /* ROF */
-      4rem /* Mag */
-      4rem /* Ammo */
-      4rem /* Dmg */
+      6.5rem /* Mag — fits "99 / 99" plus editable max */
+      4.5rem /* Ammo (inventory) */
+      4rem /* Dmg + d6 suffix */
       auto; /* × */
     gap: 0.4rem 0.6rem;
     align-items: center;
@@ -660,6 +685,107 @@
     text-align: center;
     color: var(--text-faint);
     font-family: var(--font-mono);
+  }
+  /* For melee rows the Mag and Ammo columns collapse into one centered
+     dash spanning both grid tracks — keeps row alignment with range
+     rows while saying "n/a" once instead of twice. */
+  .empty-cell.empty-melee {
+    grid-column: span 2;
+  }
+
+  /* Damage cell: bordered block matching a regular input (same
+     padding / border / surface), with the editable digits and a
+     static "d6" suffix sitting inside as one visual unit. The inner
+     <input> is borderless and transparent so the wrapper plays the
+     role of the input field; native number spinners are hidden so
+     the value hugs the suffix. */
+  .dmg-block,
+  .mag-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.45rem 0.7rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    box-sizing: border-box;
+    width: 100%;
+    line-height: normal;
+    /* Stretch to the grid row's natural height (set by sibling input
+       cells) so heights always match across the row. */
+    align-self: stretch;
+  }
+  .dmg-block:focus-within,
+  .mag-block:focus-within {
+    border-color: var(--faction, var(--ncpd));
+  }
+  .dmg-block input,
+  .mag-block input {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  .dmg-block input:focus,
+  .mag-block input:focus {
+    outline: none;
+  }
+  .dmg-block input::-webkit-outer-spin-button,
+  .dmg-block input::-webkit-inner-spin-button,
+  .mag-block input::-webkit-outer-spin-button,
+  .mag-block input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .dmg-block {
+    justify-content: flex-start;
+  }
+  .dmg-block .dmg-input {
+    flex: 0 0 auto;
+    text-align: left;
+    /* Shrink to content so "d6" sits right after the digits, with no
+       dead space on either side. */
+    field-sizing: content;
+    min-width: 1ch;
+    max-width: 4ch;
+  }
+  .dmg-suffix {
+    color: var(--text-muted);
+    flex: 0 0 auto;
+  }
+
+  /* Mag cell: loaded value sits at the left of the cell (under the
+     "Mag" header), with "/{max}" immediately after it on the same
+     baseline. Everything inside the block, no floating elements. */
+  .mag-block {
+    justify-content: flex-start;
+  }
+  .mag-block .mag-loaded,
+  .mag-block .mag-max-input {
+    flex: 0 0 auto;
+    text-align: left;
+    /* Same content-sizing trick as .dmg-input so "/" hugs the value
+       regardless of digit count. */
+    field-sizing: content;
+    min-width: 1ch;
+    max-width: 4ch;
+  }
+  .mag-block .mag-max-input {
+    color: var(--text-muted);
+  }
+  .mag-sep {
+    color: var(--text-faint);
+    flex: 0 0 auto;
+  }
+  .mag-max {
+    color: var(--text-muted);
+    flex: 0 0 auto;
   }
 
   .quality-select {

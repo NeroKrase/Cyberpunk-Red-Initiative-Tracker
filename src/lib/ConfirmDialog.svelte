@@ -2,11 +2,13 @@
   import { confirmState, resolveConfirm } from "$lib/confirm.svelte";
 
   let dialog: HTMLDialogElement | undefined = $state();
+  let confirmButton: HTMLButtonElement | undefined = $state();
 
   $effect(() => {
     if (!dialog) return;
     if (confirmState.open && !dialog.open) {
       dialog.showModal();
+      queueMicrotask(() => confirmButton?.focus());
     } else if (!confirmState.open && dialog.open) {
       dialog.close();
     }
@@ -39,6 +41,7 @@
         <button
           type="button"
           class="confirm"
+          bind:this={confirmButton}
           onclick={() => resolveConfirm(true)}
         >
           {confirmState.opts.confirmLabel}
